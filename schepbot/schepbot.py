@@ -1,7 +1,6 @@
 #!/usr/bin/python3.6
 """Reads in clan data html and parses out the list of clan members."""
 import subprocess
-import math
 import argparse
 import json
 import requests
@@ -171,37 +170,10 @@ def run_bot(token):
                     luke_emoji = emoji
             await client.send_message(message.channel, f"{luke_emoji}")
 
-        elif message.content.lower() in response_map:
-            await client.send_message(message.channel, f"{response_map[message.content.lower()]}")
-
-        elif message.content.startswith("$chance"):
-            query_list = message.content.split(" ")
-            if len(query_list) != 4:
-                await client.send_message(message.channel,
-                                          ("Usage: $chance <streak> <enrage> <lotd>, "
-                                           "where <lotd> is 1 or 0"))
-            else:
-                try:
-                    streak = int(query_list[1])
-                    enrage = int(query_list[2])
-                    lotd = int(query_list[3])
-                    droprate = math.floor(10000.0/(10+0.25*(enrage+25*lotd)+3*streak))
-                    if lotd == 1:
-                        lotd_string = "with"
-                    else:
-                        lotd_string = "without"
-                    out_string = (f"The chance of a unique at Telos with streak {streak} and "
-                                    f"enrage {enrage} {lotd_string} LotD is: 1/{droprate}")
-                    await client.send_message(message.channel, out_string)
-                except (IndexError, TypeError):
-                    await client.send_message(message.channel,
-                                              ("Usage: $chance <streak> <enrage> <lotd>, "
-                                               "where <lotd> is 1 or 0"))
-
-        elif message.content.startswith("$halp"):
-            await client.send_message(message.channel,
-                                          ("Usage: $chance <streak> <enrage> <lotd>, "
-                                           "where <lotd> is 1 or 0"))
+        else:
+            for response in response_map:
+                if response in message.content.lower():
+                    await client.send_message(message.channel, f"{response_map[response]}")
 
     client.run(token)
 
