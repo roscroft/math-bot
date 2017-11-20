@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 """Runs the telos droprate bot"""
 import argparse
+import json
 import math
 import discord
 from decimal import Decimal
@@ -121,6 +122,32 @@ def run_bot(token):
                     await client.send_message(message.channel, "Usage: $pet <droprate> <thresh> <kc>")
                 except ValueError as inst:
                     await client.send_message(message.channel, f"{inst}")
+        elif message.content.startswith("$bosslist"):
+            droprate_json = json.load(open("/home/austin/Documents/schepbot/droprates.json"))
+            bosses = list(droprate_json.keys())
+            await client.send_message(message.channel, f"The tracked bosses are: {bosses}")
+
+        elif message.content.startswith("$droplist"):
+            query_list = message.content.split(" ")
+            boss = query_list[1].lower()
+            droprate_json = json.load(open("/home/austin/Documents/schepbot/droprates.json"))
+            try:
+                droplist = droprate_json[boss]
+                drops = list(droplist.keys())
+                await client.send_message(message.channel, f"The drops for {boss} are: {drops}")
+            except KeyError:
+                await client.send_message(message.channel, "The requested boss isn't listed.")
+
+        elif message.content.startswith("$drop"):
+            query_list = message.content.split(" ")
+            boss = query_list[1].lower()
+            item = " ".join(query_list[2:]).lower()
+            droprate_json = json.load(open("/home/austin/Documents/schepbot/droprates.json"))
+            try: 
+                droprate = droprate_json[boss][item]
+                await client.send_message(message.channel, f"The droprate for {boss} of {item} is: 1/{droprate}")
+            except KeyError:
+                await client.send_message(message.channel, "Specified drop or boss not listed.")
 
     client.run(token)
 

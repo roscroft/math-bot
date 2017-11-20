@@ -1,142 +1,140 @@
 {
-    "Araxxor": {
-        "Solo Component": 120,
-        "Solo Leg": 40,
-        "Duo Component": 200,
-        "Duo Leg": 70,
-        "Avg Pheromone": 42,
-        "Egg": 500
+    "araxxor": {
+        "solo component": 120,
+        "solo leg": 40,
+        "duo component": 200,
+        "duo leg": 70,
+        "pheromone": 42,
+        "egg": 500
     },
-    "Barrows": {
-        "Any Unique": 11,
-        "Linza Drop": 512,
-        "Corrupt Sigil": 8
+    "barrows": {
+        "any unique": 11,
+        "linza drop": 512,
+        "corrupt sigil": 8
     },
-    "RotS": {
-        "Shield": 80
+    "rots": {
+        "shield": 80
     },
-    "Beastmaster Durzag": {
-        "Achto Boots": 35,
-        "Achto Boots Inferior Owned": 18,
-        "Other Achto": 55,
-        "Other Achto Inferior Owned": 28,
-        "Tuzzy": 512,
-        "Codex": 20,
-        "Razorback Gauntlets": 500,
-        "Pet": 300
+    "beastmasterdurzag": {
+        "achto boots": 35,
+        "achto boots inferior owned": 18,
+        "other achto": 55,
+        "other achto inferior owned": 28,
+        "tuzzy": 512,
+        "codex": 20,
+        "razorback gauntlets": 500,
+        "pet": 300
     },
-    "Chaos Elemental": {
-        "Dragon 2H": 128,
-        "Ancient Warrior Gear": 128,
-        "Pet": 2500
+    "chaoselemental": {
+        "dragon 2h": 128,
+        "ancient warrior gear": 128,
+        "pet": 2500
     },
-    "Corporeal Beast": {
-        "Spirit Shield": 64,
-        "Elixir": 171,
-        "Arcane Sigil": 2560,
-        "Elysian Sigil": 2560,
-        "Divine Sigil": 2560,
-        "Spectral Sigil": 1280,
-        "Pet": 2500
+    "corporealbeast": {
+        "spirit shield": 64,
+        "elixir": 171,
+        "arcane sigil": 2560,
+        "elysian sigil": 2560,
+        "divine sigil": 2560,
+        "spectral sigil": 1280,
+        "pet": 2500
     },
-    "Dagannoth Kings": {
-        "Any Unique": 128,
-        "Pet": 2500
+    "dagannothkings": {
+        "any unique": 128,
+        "pet": 2500
     },
-    "Fight Kiln": {
-        "Pet": 200
+    "fightkiln": {
+        "pet": 200
     },
-    "Giant Mole": {
-        "Dragon 2H": 520,
-        "Clingy Mole": 104,
-        "Pet": 2500
+    "giantmole": {
+        "dragon 2h": 520,
+        "dragon 2h (hm)": 260,
+        "clingy mole": 104,
+        "clingy mole (hm)": 52,
+        "ultra growth (hm)": 18,
+        "pet": 2500,
+        "pet (hm)": 500
     },
-    "Giant Mole (HM)": {
-        "Dragon 2H": 260,
-        "Clingy Mole": 52,
-        "Ultra Growth": 18,
-        "Pet": 500
+    "gwd1": {
+        "hilt": 512,
+        "any unique": 64,
+        "shard": 256,
+        "pet": 5000,
+        "hm pet": 1000
     },
-    "GWD1": {
-        "Hilt": 512,
-        "Any Unique": 64,
-        "Shard": 256,
-        "Pet": 5000,
-        "HM Pet": 1000
+    "gwd2": {
+        "any unique (0, nm)": 512,
+        "any unique (max, nm)": 256,
+        "any unique (0 cm)": 460,
+        "any unique (max, cm)": 179,
+        "essesnce (0, nm)": 128,
+        "essence (max, nm)": 64,
+        "essence (0, cm)": 115,
+        "essence (max, cm)": 44,
+        "pet": 2000,
+        "cm pet": 1000
     },
-    "GWD2": {
-        "Any Unique (0, NM)": 512,
-        "Any Unique (Max, NM)": 256,
-        "Any Unique (0 CM)": 460,
-        "Any Unique (Max, CM)": 179,
-        "Essesnce (0, NM)": 128,
-        "Essence (Max, NM)": 64,
-        "Essence (0, CM)": 115,
-        "Essence (Max, CM)": 44,
-        "Pet": 2000,
-        "CM Pet": 1000
+    "kalphiteking": {
+        "any drygore": 43,
+        "perfect chitin": 50,
+        "3x rdt": 50,
+        "pet": 2000
     },
-    "Kalphite King": {
-        "Any Drygore": 43,
-        "Perfect Chitin": 50,
-        "3x RDT": 50,
-        "Pet": 2000
+    "kalphitequeen": {
+        "dragon chain": 64,
+        "dragon 2h": 128,
+        "dragon 2h (exiled)": 64,
+        "head": 128,
+        "pet": 2500
     },
-    "Kalphite Queen": {
-        "Dragon Chain": 64,
-        "Dragon 2H": 128,
-        "Dragon 2H (Exiled)": 64,
-        "Head": 128,
-        "Pet": 2500
+    "kingblackdragon": {
+        "ornament kit": 1000,
+        "last rider's journal": 1000,
+        "head": 128,
+        "visage": 5000,
+        "pet": 2500
     },
-    "King Black Dragon": {
-        "Ornament Kit": 1000,
-        "Last Rider's Journal": 1000,
-        "Head": 128,
-        "Visage": 5000,
-        "Pet": 2500
+    "legiones": {
+        "signet": 50,
+        "grips": 2056,
+        "pet": 1200
     },
-    "Legiones": {
-        "Signet": 50,
-        "Grips": 2056,
-        "Pet": 1200
+    "nex": {
+        "any unique": 22,
+        "ancient emblem": 50,
+        "pet": 2000
     },
-    "Nex": {
-        "Any Unique": 22,
-        "Ancient Emblem": 50,
-        "Pet": 2000
+    "nexaod": {
+        "wand/core": 1000,
+        "codex": 250,
+        "any chest": 5000,
+        "pet": 3000
     },
-    "Nex: Angel of Death": {
-        "Wand/Core": 1000,
-        "Codex": 250,
-        "Any Chest": 5000,
-        "Pet": 3000
+    "queenblackdragon": {
+        "any crossbow part": 7,
+        "upgrade kit": 64,
+        "visage": 109,
+        "kiteshield": 128,
+        "pet": 2000
     },
-    "Queen Black Dragon": {
-        "Any Crossbow Part": 7,
-        "Upgrade Kit": 64,
-        "Visage": 109,
-        "Kiteshield": 128,
-        "Pet": 2000
+    "themagister": {
+        "phylactery": 17,
+        "gloves of passage": 500,
+        "pet": 1000
     },
-    "The Magister": {
-        "Phylactery": 17,
-        "Gloves of Passage": 500,
-        "Pet": 1000
+    "vorago": {
+        "wand/sing": 100,
+        "wand/sing (hm)": 50,
+        "vitalis": 5000,
+        "vitalis (hm)": 2500,
+        "bombi": 100
     },
-    "Vorago": {
-        "Wand/Sing": 100,
-        "Wand/Sing (HM)": 50,
-        "Vitalis": 5000,
-        "Vitalis (HM)": 2500,
-        "Bombi": 100
-    },
-    "Yakamaru": {
-        "Achto Boots/Gloves": 30,
-        "Achto Boots/Gloves (Inferior Owned)": 15,
-        "Other Achto": 50,
-        "Other Achto (Inferior Owned)": 25,
-        "Codex": 20,
-        "Pet": 300
+    "yakamaru": {
+        "achto boots/gloves": 30,
+        "achto boots/gloves (inferior owned)": 15,
+        "other achto": 50,
+        "other achto (inferior owned)": 25,
+        "codex": 20,
+        "pet": 300
     }
 }
