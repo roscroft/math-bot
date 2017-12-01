@@ -2,6 +2,7 @@
 """Reads in clan data html and parses out the list of clan members."""
 import subprocess
 import argparse
+import csv
 import json
 import requests
 import discord
@@ -30,7 +31,7 @@ def init_db():
 def check_tess(username, search_string):
     """Returns true if Tess drop is in user history, or in past history"""
     url_str = ""
-    with open("/home/austin/Documents/schepbot/url.txt", "r") as url_file:
+    with open("/home/austin/Documents/schepbot/tokens/url.txt", "r") as url_file:
         url_str = url_file.read().strip()
     url_str += username
     url_str += "&activities=20"
@@ -86,14 +87,14 @@ def main():
     # if args.reset:
     #     erase_caps()
     if args.check or args.update:
-        username = "Tendril drop"
+        username = "Schep"
         search_string = "tendril"
         add_tess_to_db(username, search_string)
         username = "Milow"
         search_string = "Ace"
         add_tess_to_db(username, search_string)
         token = ""
-        with open("/home/austin/Documents/schepbot/token.txt", "r") as tokenfile:
+        with open("/home/austin/Documents/schepbot/tokens/token.txt", "r") as tokenfile:
             token = tokenfile.read().strip()
         if args.check:
             run_bot(token)
@@ -101,24 +102,18 @@ def main():
         init_db()
     elif args.bot:
         token = ""
-        with open("/home/austin/Documents/schepbot/token.txt", "r") as tokenfile:
+        with open("/home/austin/Documents/schepbot/tokens/token.txt", "r") as tokenfile:
             token = tokenfile.read().strip()
         run_bot(token)
     elif args.force:
         token = ""
-        with open("/home/austin/Documents/schepbot/token.txt", "r") as tokenfile:
+        with open("/home/austin/Documents/schepbot/tokens/token.txt", "r") as tokenfile:
             token = tokenfile.read().strip()
         run_bot(token)
 
 def run_bot(token):
     """Actually runs the bot"""
     # The regular bot definition things
-    response_map = {
-        "does waffle have a life": "Waffle does not have a life.",
-        "what's that smell": "It's gyne.",
-        "raqle": "sgb btw"
-    }
-
     client = discord.Client()
 
     @client.event
@@ -170,10 +165,18 @@ def run_bot(token):
                     luke_emoji = emoji
             await client.send_message(message.channel, f"{luke_emoji}")
 
+        elif message.content.startswith("!add") and message.author.name == "Roscroft":
+            new_row = message.content[5:]
+            new_row += "\n"
+            with open("/home/austin/Documents/schepbot/responses.csv", "a+") as responses:
+                responses.write(new_row)
+
         else:
-            for response in response_map:
-                if response in message.content.lower():
-                    await client.send_message(message.channel, f"{response_map[response]}")
+            with open("/home/austin/Documents/schepbot/responses.csv", "r+") as responses:
+                reader = csv.DictReader(responses)
+                for response in reader:
+                    if response['call'] in message.content.lower():
+                        await client.send_message(message.channel, f"{response['answer']}")
 
     client.run(token)
 

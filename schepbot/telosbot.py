@@ -3,8 +3,8 @@
 import argparse
 import json
 import math
-import discord
 from decimal import Decimal
+import discord
 
 def main():
     """Runs the stuff."""
@@ -14,7 +14,7 @@ def main():
     args = parser.parse_args()
     if args.bot:
         token = ""
-        with open("/home/austin/Documents/schepbot/token2.txt", "r") as tokenfile:
+        with open("/home/austin/Documents/schepbot/tokens/token2.txt", "r") as tokenfile:
             token = tokenfile.read().strip()
         run_bot(token)
 
@@ -23,13 +23,17 @@ def run_bot(token):
     # The regular bot definition things
     client = discord.Client()
 
-    def pet_chance(droprate, threshold, kc, threshold_counter):
-        if kc < threshold or threshold_counter == 9:
-            return math.pow((1-(threshold_counter/droprate)), kc)
-        chance = math.pow((1-(threshold_counter/droprate)), threshold)
-        kc = kc - threshold
-        threshold_counter += 1
-        return chance*pet_chance(droprate, threshold, kc, threshold_counter)
+    def pet_chance(droprate, threshold, kc):
+        def pet_chance_counter(droprate, threshold, kc, threshold_counter):
+            if kc < threshold or threshold_counter == 9:
+                return math.pow((1-(threshold_counter/droprate)), kc)
+            chance = math.pow((1-(threshold_counter/droprate)), threshold)
+            kc = kc - threshold
+            threshold_counter += 1
+            return chance*pet_chance_counter(droprate, threshold, kc, threshold_counter)
+        chance = pet_chance_counter(droprate, threshold, kc, 1)
+        chance *= 100
+        return truncate_decimals(chance)
 
     def truncate_decimals(num):
         """Checks for significant figures and truncates decimals accordingly"""
@@ -99,9 +103,48 @@ def run_bot(token):
                                        "where <lotd> is 1 or 0"))
 
         elif message.content.startswith("$pet"):
-            await client.send_message(message.channel, "Calculating % chance of not getting pet by current kc...")
             query_list = message.content.split(" ")
-            if len(query_list) != 4:
+            if len(query_list) == 2 or len(query_list) == 3 or (len(query_list) == 4 and query_list[3] == "hm"):
+                try:
+                    boss = query_list[1].lower()
+                    droprate_json = json.load(open("/home/austin/Documents/schepbot/droprates.json"))
+                    if not boss in droprate_json:
+                        raise KeyError("Listed boss not in table.")
+                    boss_entry = droprate_json[boss]
+                    pet_info = boss_entry.get("pet")
+                    pet_hm_info = boss_entry.get("pet (hm)")
+                    if len(query_list) == 2:
+                        if boss == "telos":
+                            await client.send_message(message.channel, f"The pet from {boss} has droprate 1/{pet_info[0]} and threshold {pet_info[1]} with <100% enrage.")
+                            await client.send_message(message.channel, f"The pet from {boss} has droprate 1/{pet_hm_info[0]} and threshold {pet_hm_info[1]} with >100% enrage.")
+                        else:
+                            if pet_info is not None:
+                                await client.send_message(message.channel, f"The pet from {boss} has droprate 1/{pet_info[0]} and threshold {pet_info[1]}.")
+                            if pet_hm_info is not None:
+                                await client.send_message(message.channel, f"The pet from hardmode {boss} has droprate 1/{pet_hm_info[0]} and threshold {pet_hm_info[1]}.")
+                            if pet_info is None and pet_hm_info is None:
+                                await client.send_message(message.channel, f"No pet information found for {boss}.")
+                    elif len(query_list) == 3 or (len(query_list) == 4 and query_list[3] == "hm"):
+                        kc = int(query_list[2])
+                        # await client.send_message(message.channel, "Calculating % chance of not getting pet by current kc...")
+                        if boss == "telos":
+                            chance = pet_chance(pet_hm_info[0], pet_hm_info[1], kc)
+                            await client.send_message(message.channel, f"Your percent chance of not getting Tess by now is: {chance}%")
+                        else:
+                            if len(query_list) == 4 and query_list[3] == "hm":
+                                if pet_hm_info is None:
+                                    await client.send_message(message.channel, f"There is no different droprate for the hardmode version of this boss (if there even is one).")
+                                else:
+                                    chance = pet_chance(pet_hm_info[0], pet_hm_info[1], kc)
+                                    await client.send_message(message.channel, f"Your percent chance of not getting the pet by now in hardmode is: {chance}%")
+                            elif pet_info is not None:
+                                chance = pet_chance(pet_info[0], pet_info[1], kc)
+                                await client.send_message(message.channel, f"Your percent chance of not getting the pet by now is: {chance}%")
+                            elif pet_info is None and pet_hm_info is None:
+                                await client.send_message(message.channel, f"No pet information found for {boss}.")
+                except (KeyError, ValueError) as inst:
+                    await client.send_message(message.channel, f"{inst}")
+            elif len(query_list) != 4:
                 await client.send_message(message.channel, "Usage: $pet <droprate> <thresh> <kc>")
             else:
                 try:
@@ -115,13 +158,14 @@ def run_bot(token):
                     elif kc < 0:
                         raise ValueError("Invalid killcount")
                     else:
-                        chance = pet_chance(droprate, thresh, kc, 1)*100
-                        chance = truncate_decimals(chance)
+                        chance = pet_chance(droprate, thresh, kc)
+                        # await client.send_message(message.channel, "Calculating % chance of not getting pet by current kc...")
                         await client.send_message(message.channel, f"Your percent chance of not getting the pet by now is: {chance}%")
                 except (IndexError, TypeError):
-                    await client.send_message(message.channel, "Usage: $pet <droprate> <thresh> <kc>")
+                    await client.send_message(message.channel, "Usage: $pet <droprate> <thresh> <kc> or $pet <boss> <kc> or $pet <boss> <kc> hm.")
                 except ValueError as inst:
                     await client.send_message(message.channel, f"{inst}")
+
         elif message.content.startswith("$bosslist"):
             droprate_json = json.load(open("/home/austin/Documents/schepbot/droprates.json"))
             bosses = list(droprate_json.keys())

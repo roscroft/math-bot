@@ -1,9 +1,7 @@
-log.log
-log2.log
-token.txt
-token2.txt
-url.txt
-channel.txt
-tess.db
-pid.pid
-pid2.pid
+logs/
+tokens/
+*.csv
+*.txt
+*.pid
+*.log
+*.db
