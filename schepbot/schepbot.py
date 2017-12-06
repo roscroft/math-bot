@@ -11,6 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+ABSPATH = "/home/austin/Documents/schepbot"
 ENGINE = create_engine(f"sqlite:////home/austin/Documents/schepbot/tess.db")
 MASTER_SESSION = sessionmaker(bind=ENGINE)
 BASE = declarative_base()
@@ -31,7 +32,7 @@ def init_db():
 def check_tess(username, search_string):
     """Returns true if Tess drop is in user history, or in past history"""
     url_str = ""
-    with open("/home/austin/Documents/schepbot/tokens/url.txt", "r") as url_file:
+    with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
         url_str = url_file.read().strip()
     url_str += username
     url_str += "&activities=20"
@@ -82,10 +83,10 @@ def main():
     parser.add_argument("-b", "--bot", help="Runs only the bot", action="store_true")
     # parser.add_argument("-r", "--reset", help="Zeros out existing caps", action="store_true")
     parser.add_argument("-i", "--init", help="Reinitializes the database", action="store_true")
-    parser.add_argument("-f", "--force", help="Force sends a message", action="store_true")
     args = parser.parse_args()
-    # if args.reset:
-    #     erase_caps()
+    token = ""
+    with open(f"{ABSPATH}/tokens/token.txt", "r") as tokenfile:
+        token = tokenfile.read().strip()
     if args.check or args.update:
         username = "Schep"
         search_string = "tendril"
@@ -93,22 +94,11 @@ def main():
         username = "Milow"
         search_string = "Ace"
         add_tess_to_db(username, search_string)
-        token = ""
-        with open("/home/austin/Documents/schepbot/tokens/token.txt", "r") as tokenfile:
-            token = tokenfile.read().strip()
         if args.check:
             run_bot(token)
     elif args.init:
         init_db()
     elif args.bot:
-        token = ""
-        with open("/home/austin/Documents/schepbot/tokens/token.txt", "r") as tokenfile:
-            token = tokenfile.read().strip()
-        run_bot(token)
-    elif args.force:
-        token = ""
-        with open("/home/austin/Documents/schepbot/tokens/token.txt", "r") as tokenfile:
-            token = tokenfile.read().strip()
         run_bot(token)
 
 def run_bot(token):
@@ -127,56 +117,58 @@ def run_bot(token):
     @client.event
     async def on_message(message):
         """Handles commands based on messages sent"""
+        channel = message.channel
+        content = message.content
         schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
         milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
-        if (message.content.lower() in schep_questions) or (message.content.lower()[:-1] in schep_questions):
+        if (content.lower() in schep_questions) or (content.lower()[:-1] in schep_questions):
             schep_has_tess = SESSION.query(
                 HasTess.has_tess).filter(HasTess.name == "Tendril drop").first()
             if schep_has_tess is None or schep_has_tess[0] is False:
-                await client.send_message(message.channel, f"Schep does not have Tess.", tts=True)
+                await client.send_message(channel, f"Schep does not have Tess, make sure to let him know ;)", tts=True)
             else:
-                await client.send_message(message.channel, f"Schep finally got Tess!")
-        
-        elif (message.content.lower() in milow_questions) or (message.content.lower()[:-1] in milow_questions):
+                await client.send_message(channel, f"Schep finally got Tess!")
+
+        elif (content.lower() in milow_questions) or (content.lower()[:-1] in milow_questions):
             schep_has_tess = SESSION.query(
                 HasTess.has_tess).filter(HasTess.name == "Milow").first()
             if schep_has_tess is None or schep_has_tess[0] is False:
-                await client.send_message(message.channel, f"Milow does not have Ace.", tts=True)
+                await client.send_message(channel, f"Milow does not have Ace.", tts=True)
             else:
-                await client.send_message(message.channel, f"Milow finally got Ace!")
+                await client.send_message(channel, f"Milow finally got Ace!")
 
-        elif message.content.startswith('!update'):
+        elif content.startswith('!reboot'):
             role_list = [role.name for role in message.author.roles]
             if "cap handler" in role_list:
-                await client.send_message(message.channel, "Manually updating...")
+                await client.send_message(channel, "Rebooting bots.")
                 subprocess.call(['./runschepbot.sh'])
 
-        elif message.content.lower().startswith("<@!381213507997270017> when will"):
+        elif content.lower().startswith("<@!381213507997270017> when will"):
             emojis = client.get_all_emojis()
             for emoji in emojis:
                 if emoji.name == "luke":
                     luke_emoji = emoji
-            await client.send_message(message.channel, f"{luke_emoji} Soon:tm: {luke_emoji}")
+            await client.send_message(channel, f"{luke_emoji} Soon:tm: {luke_emoji}")
 
-        elif message.content.lower().startswith("markdonalds"):
+        elif content.lower().startswith("markdonalds"):
             emojis = client.get_all_emojis()
             for emoji in emojis:
                 if emoji.name == "mRage":
                     luke_emoji = emoji
-            await client.send_message(message.channel, f"{luke_emoji}")
+            await client.send_message(channel, f"{luke_emoji}")
 
-        elif message.content.startswith("!add") and message.author.name == "Roscroft":
-            new_row = message.content[5:]
+        elif content.startswith("!add") and message.author.name == "Roscroft":
+            new_row = content[5:]
             new_row += "\n"
-            with open("/home/austin/Documents/schepbot/responses.csv", "a+") as responses:
+            with open(f"{ABSPATH}/responses.csv", "a+") as responses:
                 responses.write(new_row)
 
         else:
-            with open("/home/austin/Documents/schepbot/responses.csv", "r+") as responses:
+            with open(f"{ABSPATH}/responses.csv", "r+") as responses:
                 reader = csv.DictReader(responses)
                 for response in reader:
-                    if response['call'] in message.content.lower():
-                        await client.send_message(message.channel, f"{response['answer']}")
+                    if response['call'] in content.lower():
+                        await client.send_message(channel, f"{response['answer']}")
 
     client.run(token)
 
