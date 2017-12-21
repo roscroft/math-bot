@@ -46,6 +46,7 @@ def check_tess(username, search_string):
     for activity in activities:
         if search_string in activity['details']:
             return True
+        print(activity)
     return False
 
 def add_tess_to_db(username, search_string):
@@ -123,7 +124,7 @@ def run_bot(token):
         milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
         if (content.lower() in schep_questions) or (content.lower()[:-1] in schep_questions):
             schep_has_tess = SESSION.query(
-                HasTess.has_tess).filter(HasTess.name == "Tendril drop").first()
+                HasTess.has_tess).filter(HasTess.name == "Schep").first()
             if schep_has_tess is None or schep_has_tess[0] is False:
                 await client.send_message(channel, f"Schep does not have Tess, make sure to let him know ;)", tts=True)
             else:

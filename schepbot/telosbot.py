@@ -21,64 +21,6 @@ def main():
     if args.bot:
         run_bot(token)
 
-def run_bot(token):
-    """Actually runs the bot"""
-    # The regular bot definition things
-    client = discord.Client()
-
-    @client.event
-    async def on_ready():
-        """Prints bot initialization info"""
-        print('Logged in as')
-        print(client.user.name)
-        print(client.user.id)
-        print('------')
-
-    @client.event
-    async def on_message(message):
-        """Handles commands based on messages sent"""
-        content = message.content
-        channel = message.channel
-
-        if content.startswith("$telos"):
-            out_msg = telos_command(content)
-            if out_msg is not None:
-                await client.send_message(channel, out_msg)
-
-        elif content.startswith("$pet"):
-            out_msg = pet_command(content)
-            if out_msg is not None:
-                await client.send_message(channel, out_msg)
-
-        elif content.startswith("$bosslist"):
-            droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
-            bosses = list(droprate_json.keys())
-            await client.send_message(channel, f"The tracked bosses are: {bosses}")
-
-        elif content.startswith("$droplist"):
-            query_list = content.split(" ")
-            boss = query_list[1].lower()
-            droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
-            try:
-                droplist = droprate_json[boss]
-                drops = list(droplist.keys())
-                await client.send_message(channel, f"The drops for {boss} are: {drops}")
-            except KeyError:
-                await client.send_message(channel, "The requested boss isn't listed.")
-
-        elif content.startswith("$drop"):
-            query_list = content.split(" ")
-            boss = query_list[1].lower()
-            item = " ".join(query_list[2:]).lower()
-            droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
-            try:
-                droprate = droprate_json[boss][item]
-                await client.send_message(channel, f"The droprate for {boss} of {item} is: 1/{droprate}")
-            except KeyError:
-                await client.send_message(channel, "Specified drop or boss not listed.")
-
-    client.run(token)
-
 def pet_chance(droprate, threshold, killcount):
     """Calls recursive pet_chance_counter function to determine chance of not getting pet."""
     def pet_chance_counter(droprate, threshold, killcount, threshold_counter):
@@ -95,11 +37,11 @@ def pet_chance(droprate, threshold, killcount):
 
 def telos(enrage, streak, lotd):
     """Returns the drop chance at a given enrage and streak, with or without LotD."""
-    droprate = 1/math.floor(10000.0/(10+0.25*(enrage+25*lotd)+3*streak))
-    cap = 1.0/9
-    if droprate > cap:
-        return cap
-    return droprate
+    denominator = math.floor(10000.0/(10+0.25*(enrage+25*lotd)+3*streak))
+    cap = 9
+    if denominator < cap:
+        return 1.0/cap
+    return 1/denominator
 
 def expected_uniques(start_enrage, end_enrage):
     """Given a start enrage and end enrage, returns expected number of uniques and kills."""
@@ -176,6 +118,8 @@ def telos_command(content):
                 enrage = 4000
             no_lotd = telos(enrage, streak, 0)
             lotd = telos(enrage, streak, 1)
+            print(no_lotd)
+            print(lotd)
             out_msg += (f"A kill with enrage {enrage}% and streak {streak}:\n"
                         f"Unique chance: 1/{int(1/no_lotd)} without LotD, "
                         f"1/{int(1/lotd)} with LotD.")
@@ -205,10 +149,10 @@ def telos_command(content):
             return out_msg
 
         regex_handlers = {}
-        regex_handlers[r"\$telos (\d{1,4})% (\d{1,4})%"] = bounds_reply
+        regex_handlers[r"\$telos (\d{1,4})% (\d+)%"] = bounds_reply
         regex_handlers[r"\$telos (\d{1,4})%"] = start_reply
-        regex_handlers[r"\$telos (\d{1,4})% (\d{1,4})kc"] = chance_reply
-        regex_handlers[r"\$telos pet (\d{1,5})"] = pet_reply
+        regex_handlers[r"\$telos (\d{1,4})% (\d+)kc"] = chance_reply
+        regex_handlers[r"\$telos pet (\d+)"] = pet_reply
         regex_handlers[r"\$telos help"] = help_reply
 
         out_msg = None
@@ -303,9 +247,9 @@ def pet_command(content):
 
         regex_handlers = {}
         regex_handlers[r"\$pet " + f"{boss_str}"] = droprate_reply
-        regex_handlers[r"\$pet " + f"{boss_str}" + r" (\d{1,5})"] = chance_reply
-        regex_handlers[r"\$pet hm " + f"{boss_str}" + r" (\d{1,5})"] = hm_chance_reply
-        regex_handlers[r"\$pet (\d{1,5}) (\d{1,5}) (\d{1,5})"] = manual_reply
+        regex_handlers[r"\$pet " + f"{boss_str}" + r" (\d+)"] = chance_reply
+        regex_handlers[r"\$pet hm " + f"{boss_str}" + r" (\d+)"] = hm_chance_reply
+        regex_handlers[r"\$pet (\d+) (\d+) (\d+)"] = manual_reply
 
         out_msg = None
 
@@ -318,6 +262,62 @@ def pet_command(content):
 
     except ValueError as inst:
         return f"{inst}"
+
+def run_bot(token):
+    """Actually runs the bot"""
+    # The regular bot definition things
+    client = discord.Client()
+
+    command_map = {"$telos": telos_command,
+                   "$pet": pet_command}
+    @client.event
+    async def on_ready():
+        """Prints bot initialization info"""
+        print('Logged in as')
+        print(client.user.name)
+        print(client.user.id)
+        print('------')
+
+    @client.event
+    async def on_message(message):
+        """Handles commands based on messages sent"""
+        content = message.content
+        channel = message.channel
+
+        for command, func in command_map.items():
+            if content.startswith(command):
+                out_msg = func(content)
+                if out_msg is not None:
+                    await client.send_message(channel, out_msg)
+
+        if content.startswith("$bosslist"):
+            droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
+            bosses = list(droprate_json.keys())
+            await client.send_message(channel, f"The tracked bosses are: {bosses}")
+
+        elif content.startswith("$droplist"):
+            query_list = content.split(" ")
+            boss = query_list[1].lower()
+            droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
+            try:
+                droplist = droprate_json[boss]
+                drops = list(droplist.keys())
+                await client.send_message(channel, f"The drops for {boss} are: {drops}")
+            except KeyError:
+                await client.send_message(channel, "The requested boss isn't listed.")
+
+        elif content.startswith("$drop"):
+            query_list = content.split(" ")
+            boss = query_list[1].lower()
+            item = " ".join(query_list[2:]).lower()
+            droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
+            try:
+                droprate = droprate_json[boss][item]
+                await client.send_message(channel, f"The droprate for {boss} of {item} is: 1/{droprate}")
+            except KeyError:
+                await client.send_message(channel, "Specified drop or boss not listed.")
+
+    client.run(token)
 
 if __name__ == "__main__":
     main()
