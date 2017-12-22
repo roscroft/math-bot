@@ -2,6 +2,8 @@
 """Reads in clan data html and parses out the list of clan members."""
 import subprocess
 import argparse
+import random
+import datetime
 import csv
 import json
 import requests
@@ -46,7 +48,6 @@ def check_tess(username, search_string):
     for activity in activities:
         if search_string in activity['details']:
             return True
-        print(activity)
     return False
 
 def add_tess_to_db(username, search_string):
@@ -120,6 +121,17 @@ def run_bot(token):
         """Handles commands based on messages sent"""
         channel = message.channel
         content = message.content
+        reaction_pct = random.random()
+        with open(f"{ABSPATH}/victim.txt", "r+") as victim_file:
+            victim = victim_file.read().strip().split(" ")[0]
+            author = message.author.name
+            if victim == author and reaction_pct < 0.2:
+                emojis = client.get_all_emojis()
+                for emoji in emojis:
+                    if emoji.name == "nice":
+                        nice_emoji = emoji
+                await client.add_reaction(message, nice_emoji)
+
         schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
         milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
         if (content.lower() in schep_questions) or (content.lower()[:-1] in schep_questions):
@@ -171,6 +183,29 @@ def run_bot(token):
                     if response['call'] in content.lower():
                         await client.send_message(channel, f"{response['answer']}")
 
+    async def choose_victim():
+        await client.wait_until_ready()
+        now = datetime.datetime.now()
+        with open(f"{ABSPATH}/victim.txt", "r+") as victim_file:
+            victim_list = victim_file.read().strip().split(" ")
+            victim = victim_list[0]
+            try:
+                timestamp = f"{victim_list[1]} {victim_list[2]}"
+                timestamp = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f")
+                hours_since = (now-timestamp).seconds//3600
+            except IndexError:
+                timestamp = None
+                hours_since = None
+            if timestamp is None or hours_since > 6 or victim == "":
+                server = client.get_server("339514092106678273")
+                members = list(server.members)
+                victim = random.sample(members, 1)[0]
+                print(victim.name)
+                if not timestamp is None:
+                    victim_file.truncate(0)
+                victim_file.write(f"{victim.name} {now}")
+
+    client.loop.create_task(choose_victim())
     client.run(token)
 
 if __name__ == "__main__":
