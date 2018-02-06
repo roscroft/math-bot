@@ -123,6 +123,7 @@ def run_bot(capped_users, token):
         """Handles commands based on messages sent"""
 
         channel = message.channel
+        channel_id = message.channel.id
         content = message.content
         author = message.author
         author_name = author.name
@@ -130,6 +131,10 @@ def run_bot(capped_users, token):
         command_map = {"$telos": telos_command,
                        "$pet": pet_command}
         reaction_pct = random.random()
+
+        cap_channel = ""
+        with open(f"{ABSPATH}/tokens/channel.txt", "r+") as channel_file:
+            cap_channel = channel_file.read().strip()
 
         with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
             victim = victim_file.read().strip().split("~")[0]
@@ -147,9 +152,6 @@ def run_bot(capped_users, token):
                 if out_msg is not None:
                     await client.send_message(channel, out_msg)
 
-        cap_channel = ""
-        with open(f"{ABSPATH}/tokens/channel.txt", "r+") as channel_file:
-            cap_channel = channel_file.read().strip()
 
         # schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
         # milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
@@ -239,12 +241,12 @@ def run_bot(capped_users, token):
         elif content.startswith('!vis'):
             await client.send_message(channel, "It's actually ~vis")
 
-        elif channel == cap_channel:
-            if content.startswith('!delmsgs') and "cap handler" in role_list:
+        elif channel_id == cap_channel:
+            if content.startswith('!delmsgs') and ("cap handler" in role_list):
                 info = content.split(" ")[1]
                 if info == "all":
                     async for msg in client.logs_from(channel, limit=1000):
-                        if author == client.user:
+                        if msg.author == client.user:
                             time.sleep(1)
                             await client.delete_message(msg)
                 elif info == "noncap":
@@ -277,7 +279,7 @@ def run_bot(capped_users, token):
             elif content.startswith('!list'):
                 userlist = []
                 async for msg in client.logs_from(channel, limit=500):
-                    if author == client.user and ("capped" in msg.content):
+                    if msg.author == client.user and ("capped" in msg.content):
                         msg_lines = msg.content.split("\n")
                         for cap_report in msg_lines:
                             name_index = cap_report.find(" has")
@@ -288,11 +290,11 @@ def run_bot(capped_users, token):
                     ret_str += f"{i+1}. {userlist[i]}\n"
                 await client.send_message(channel, ret_str)
 
-            elif content.startswith('!update') and "cap handler" in role_list:
+            elif content.startswith('!update') and ("cap handler" in role_list):
                 await client.send_message(channel, "Manually updating...")
                 subprocess.call(['./runmathbot.sh'])
 
-            elif content.startswith('!force') and "cap handler" in role_list:
+            elif content.startswith('!force') and ("cap handler" in role_list):
                 user = content.split(" ")[1]
                 if user == "all":
                     capped_users = SESSION.query(Account.name, Account.last_cap_time).all()
@@ -366,24 +368,24 @@ def run_bot(capped_users, token):
     client.loop.create_task(report_caps(capped_users))
     client.run(token)
 
-def check_cap(user):
-    """Given a user, return cap date if it is in their activity history."""
+def check_alog(username, search_string):
+    """Returns date if search string is in user history, or if it has previously been recorded."""
     url_str = ""
     with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
         url_str = url_file.read().strip()
-    url_str += user
+    url_str += username
     url_str += "&activities=20"
     data = REQUEST_SESSION.get(url_str).content
     data_json = json.loads(data)
     try:
         activities = data_json['activities']
     except KeyError:
-        print(f"{user}'s profile is private.")
+        print(f"{username}'s profile is private.")
         return None
     for activity in activities:
-        if "capped" in activity['details']:
+        if search_string in activity['details']:
             date = activity['date']
-            print(f"Cap found: {user} capped on {date}.")
+            print(f"{search_string} found: {username}, {date}")
             return activity['date']
     return None
 
@@ -392,7 +394,7 @@ def add_cap_to_db(clan_list):
     add_list = []
     capped_users = []
     for user in clan_list:
-        cap_date = check_cap(user)
+        cap_date = check_alog(user, "capped")
         if cap_date is not None:
             db_date = datetime.datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
             # cap_date = datetime.datetime.strptime(cap_date, "%a, %d %b %Y %H:%M:%S %Z")
@@ -431,29 +433,11 @@ def add_cap_to_db(clan_list):
     SESSION.commit()
     return capped_users
 
-def make_check(username, search_string):
-    """Returns true if search string is in user history, or if it has previously been recorded."""
-    url_str = ""
-    with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
-        url_str = url_file.read().strip()
-    url_str += username
-    url_str += "&activities=20"
-    data = REQUEST_SESSION.get(url_str).content
-    data_json = json.loads(data)
-    try:
-        activities = data_json['activities']
-    except KeyError:
-        print(f"{username}'s profile is private.")
-        return None
-    for activity in activities:
-        if search_string in activity['details']:
-            return True
-    return False
 
 def add_check_to_db(username, search_string):
     """Updates a user's record with results of the check."""
     add_list = []
-    check_res = make_check(username, search_string)
+    check_res = check_alog(username, search_string)
     if check_res is not None:
         check_report = SESSION.query(CheckInfo.satisfies).filter(CheckInfo.name == username).first()
         if check_report is None or check_report[0] is False:
