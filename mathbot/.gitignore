@@ -1,0 +1,8 @@
+logs/
+tokens/
+checks/
+*.csv
+*.txt
+*.pid
+*.log
+*.db
