@@ -90,12 +90,12 @@ def main():
     with open(f"{ABSPATH}/tokens/token.txt", "r") as tokenfile:
         token = tokenfile.read().strip()
     if args.check or args.update:
-        username = "Schep"
-        search_string = "tendril"
-        add_tess_to_db(username, search_string)
-        username = "Milow"
-        search_string = "Ace"
-        add_tess_to_db(username, search_string)
+        # username = "Schep"
+        # search_string = "tendril"
+        # add_tess_to_db(username, search_string)
+        # username = "Milow"
+        # search_string = "Ace"
+        # add_tess_to_db(username, search_string)
         if args.check:
             run_bot(token)
     elif args.init:
@@ -125,43 +125,40 @@ def run_bot(token):
         with open(f"{ABSPATH}/victim.txt", "r+") as victim_file:
             victim = victim_file.read().strip().split(" ")[0]
             author = message.author.name
-            if victim == author and reaction_pct < 0.2:
-                emojis = client.get_all_emojis()
-                for emoji in emojis:
-                    if emoji.name == "nice":
-                        nice_emoji = emoji
-                await client.add_reaction(message, nice_emoji)
+            if victim == author and reaction_pct < 1:
+                emojis = list(client.get_all_emojis())
+                add_emoji = random.sample(emojis, 1)[0]
+                # for emoji in emojis:
+                #     if emoji.name == "nice":
+                #         nice_emoji = emoji
+                await client.add_reaction(message, add_emoji)
 
-        schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
-        milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
-        if (content.lower() in schep_questions) or (content.lower()[:-1] in schep_questions):
-            schep_has_tess = SESSION.query(
-                HasTess.has_tess).filter(HasTess.name == "Schep").first()
-            if schep_has_tess is None or schep_has_tess[0] is False:
-                await client.send_message(channel, f"Schep does not have Tess, make sure to let him know ;)", tts=True)
-            else:
-                await client.send_message(channel, f"Schep finally got Tess!")
+        # schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
+        # milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
+        # if (content.lower() in schep_questions) or (content.lower()[:-1] in schep_questions):
+        #     schep_has_tess = SESSION.query(
+        #         HasTess.has_tess).filter(HasTess.name == "Schep").first()
+        #     if schep_has_tess is None or schep_has_tess[0] is False:
+        #         await client.send_message(channel, f"Schep does not have Tess, make sure to let him know ;)", tts=True)
+        #     else:
+        #         await client.send_message(channel, f"Schep finally got Tess!")
 
-        elif (content.lower() in milow_questions) or (content.lower()[:-1] in milow_questions):
-            schep_has_tess = SESSION.query(
-                HasTess.has_tess).filter(HasTess.name == "Milow").first()
-            if schep_has_tess is None or schep_has_tess[0] is False:
-                await client.send_message(channel, f"Milow does not have Ace.", tts=True)
-            else:
-                await client.send_message(channel, f"Milow finally got Ace!")
+        # elif (content.lower() in milow_questions) or (content.lower()[:-1] in milow_questions):
+        #     schep_has_tess = SESSION.query(
+        #         HasTess.has_tess).filter(HasTess.name == "Milow").first()
+        #     if schep_has_tess is None or schep_has_tess[0] is False:
+        #         await client.send_message(channel, f"Milow does not have Ace.", tts=True)
+        #     else:
+        #         await client.send_message(channel, f"Milow finally got Ace!")
 
-        elif content.startswith('!reboot'):
+        if content.startswith('!reboot'):
             role_list = [role.name for role in message.author.roles]
             if "cap handler" in role_list:
                 await client.send_message(channel, "Rebooting bots.")
                 subprocess.call(['./runschepbot.sh'])
 
         elif content.lower().startswith("<@!381213507997270017> when will"):
-            emojis = client.get_all_emojis()
-            for emoji in emojis:
-                if emoji.name == "luke":
-                    luke_emoji = emoji
-            await client.send_message(channel, f"{luke_emoji} Soon:tm: {luke_emoji}")
+            await client.send_message(channel, f":crystal_ball: Soon:tm: :crystal_ball:")
 
         elif content.lower().startswith("markdonalds"):
             emojis = client.get_all_emojis()
@@ -176,6 +173,20 @@ def run_bot(token):
             with open(f"{ABSPATH}/responses.csv", "a+") as responses:
                 responses.write(new_row)
 
+        elif content.startswith("!player") and message.author.name == "Roscroft":
+            victim = content[8:]
+            now = datetime.datetime.now()
+            with open(f"{ABSPATH}/victim.txt", "w+") as victim_file:
+                victim_file.write(f"{victim} {now}")
+
+        elif content.startswith("!pairings") and message.author.name == "Roscroft":
+            server = client.get_server("339514092106678273")
+            members = list(server.members)
+            await client.send_message(channel, f"This would result in {len(members)*len(members)} messages.")
+            # for member1 in members:
+            #     for member2 in members:
+            #         await client.send_message(channel, f"--ship {member1} {member2}")
+
         else:
             with open(f"{ABSPATH}/responses.csv", "r+") as responses:
                 reader = csv.DictReader(responses)
@@ -187,7 +198,7 @@ def run_bot(token):
         await client.wait_until_ready()
         now = datetime.datetime.now()
         with open(f"{ABSPATH}/victim.txt", "r+") as victim_file:
-            victim_list = victim_file.read().strip().split(" ")
+            victim_list = victim_file.read().strip().split("~")
             victim = victim_list[0]
             try:
                 timestamp = f"{victim_list[1]} {victim_list[2]}"
@@ -196,14 +207,16 @@ def run_bot(token):
             except IndexError:
                 timestamp = None
                 hours_since = None
-            if timestamp is None or hours_since > 6 or victim == "":
+            if timestamp is None or hours_since < 6 or victim == "":
                 server = client.get_server("339514092106678273")
                 members = list(server.members)
                 victim = random.sample(members, 1)[0]
                 print(victim.name)
                 if not timestamp is None:
-                    victim_file.truncate(0)
-                victim_file.write(f"{victim.name} {now}")
+                    victim_file.seek(0)
+                    victim_file.truncate()
+                victim_file.write(f"{victim.name}~{now}")
+
 
     client.loop.create_task(choose_victim())
     client.run(token)

@@ -245,11 +245,26 @@ def pet_command(content):
                 out_msg = f"Your chance of not getting the pet by now is: {chance}%"
             return out_msg
 
+        def help_reply(match):
+            """Returns a help message for pets."""
+            del match
+            out_msg = ("List of commands:\n$pet <boss_str> - displays pet droprate for boss."
+                       "\n$pet <boss_str> <killcount> - displays chance of getting boss pet with "
+                       "given killcount."
+                       "\n$pet hm <boss_str> <killcount> - displays chance of getting boss pet in"
+                       " hardmode with given killcount."
+                       "\n$pet <droprate> <threshold> <killcount> - displays chance of getting "
+                       "boss pet, with given droprate, threshold, and killcount."
+                       "$pet help - returns the above list.")
+            return out_msg
+
+
         regex_handlers = {}
         regex_handlers[r"\$pet " + f"{boss_str}"] = droprate_reply
         regex_handlers[r"\$pet " + f"{boss_str}" + r" (\d+)"] = chance_reply
         regex_handlers[r"\$pet hm " + f"{boss_str}" + r" (\d+)"] = hm_chance_reply
         regex_handlers[r"\$pet (\d+) (\d+) (\d+)"] = manual_reply
+        regex_handlers[r"\$pet help"] = help_reply
 
         out_msg = None
 
@@ -290,7 +305,11 @@ def run_bot(token):
                 if out_msg is not None:
                     await client.send_message(channel, out_msg)
 
-        if content.startswith("$bosslist"):
+        if content.startswith("$help"):
+            out_msg = "Try '$telos help' or '$pet help'. Still working on the other stuff."
+            await client.send_message(channel, out_msg)
+
+        elif content.startswith("$bosslist"):
             droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
             bosses = list(droprate_json.keys())
             await client.send_message(channel, f"The tracked bosses are: {bosses}")
