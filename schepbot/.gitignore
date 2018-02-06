@@ -1,7 +1,0 @@
-logs/
-tokens/
-*.csv
-*.txt
-*.pid
-*.log
-*.db
