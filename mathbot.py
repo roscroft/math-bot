@@ -5,23 +5,32 @@ import math
 import subprocess
 import argparse
 import random
+import time
 import datetime
 import csv
 import json
+from html.parser import HTMLParser
 import requests
 import discord
-from sqlalchemy import Column, String, Boolean
+from sqlalchemy import Column, String, Boolean, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 ABSPATH = "/home/austin/Documents/mathbot"
 STREAK_INCREASE = 11.58
-ENGINE = create_engine(f"sqlite:////home/austin/Documents/mathbot/checks.db")
+ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
 MASTER_SESSION = sessionmaker(bind=ENGINE)
 BASE = declarative_base()
 REQUEST_SESSION = requests.session()
 SESSION = MASTER_SESSION()
+
+class Account(BASE):
+    """Defines the class to handle account names and historical caps"""
+    __tablename__ = 'account'
+    name = Column(String(50), primary_key=True)
+    last_cap_time = Column(DateTime)
+    total_caps = Column(Integer)
 
 class CheckInfo(BASE):
     """Stores if a user satisfies a check or not"""
@@ -30,43 +39,9 @@ class CheckInfo(BASE):
     satisfies = Column(Boolean)
 
 def init_db():
-    """Initialized and optionally clears out the database"""
+    """Initializes and optionally clears out the database"""
     BASE.metadata.bind = ENGINE
     BASE.metadata.create_all(ENGINE)
-
-def make_check(username, search_string):
-    """Returns true if search string is in user history, or if it has previously been recorded."""
-    url_str = ""
-    with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
-        url_str = url_file.read().strip()
-    url_str += username
-    url_str += "&activities=20"
-    data = REQUEST_SESSION.get(url_str).content
-    data_json = json.loads(data)
-    try:
-        activities = data_json['activities']
-    except KeyError:
-        print(f"{username}'s profile is private.")
-        return None
-    for activity in activities:
-        if search_string in activity['details']:
-            return True
-    return False
-
-def add_check_to_db(username, search_string):
-    """Updates a user's record with results of the check."""
-    add_list = []
-    check_res = make_check(username, search_string)
-    if check_res is not None:
-        check_report = SESSION.query(CheckInfo.satisfies).filter(CheckInfo.name == username).first()
-        if check_report is None or check_report[0] is False:
-            primary_key_map = {"name": username}
-            account_dict = {"name": username, "satisfies": check_res}
-            account_record = CheckInfo(**account_dict)
-            add_list.append(upsert(CheckInfo, primary_key_map, account_record))
-    add_list = [item for item in add_list if item is not None]
-    SESSION.add_all(add_list)
-    SESSION.commit()
 
 def upsert(table, primary_key_map, obj):
     """Decides whether to insert or update an object."""
@@ -78,31 +53,59 @@ def upsert(table, primary_key_map, obj):
         return None
     return obj
 
+class MyHTMLParser(HTMLParser):
+    """Builds an HTML parser."""
+    def handle_data(self, data):
+        if data.startswith("\nvar data;"):
+            list_start = data.find("[")
+            list_end = data.find("]")
+            clan_members = data[list_start+1:list_end]
+            clan_members = clan_members.split(", ")
+            clan_list = []
+            for item in clan_members:
+                add_item = item[1:-1]
+                add_item = add_item.replace(u'\xa0', u' ')
+                clan_list.append(add_item)
+            self.data = clan_list
+
 def main():
     """Runs the stuff."""
     parser = argparse.ArgumentParser(description="Choose script actions.")
-    parser.add_argument("-a", "--all", help="Runs checks and bot.", action="store_true")
-    parser.add_argument("-u", "--update", help="Runs only checks.", action="store_true")
+    parser.add_argument(
+        "-a", "--all", help="Runs user checks, cap check, and bot.", action="store_true")
+    parser.add_argument("-c", "--check", help="Runs the cap check.", action="store_true")
+    parser.add_argument("-u", "--update", help="Runs only user checks.", action="store_true")
     parser.add_argument("-b", "--bot", help="Runs only the bot.", action="store_true")
-    # parser.add_argument("-r", "--reset", help="Zeros out existing caps", action="store_true")
-    parser.add_argument("-i", "--init", help="Reinitializes the database.", action="store_true")
+    parser.add_argument("-i", "--init", help="Reinitializes the databases.", action="store_true")
     args = parser.parse_args()
     token = ""
     with open(f"{ABSPATH}/tokens/token.txt", "r") as token_file:
         token = token_file.read().strip()
-    if args.all or args.update:
-        with open(f"{ABSPATH}/checks/checkfile.csv", "r") as check_file:
-            reader = csv.DictReader(check_file)
-            for check in reader:
-                add_check_to_db(check['name'], check['string'])
+    if args.all or args.check or args.update:
+        capped_users = []
+        if not args.update:
+            clan_parser = MyHTMLParser()
+            url_str = ""
+            with open(f"{ABSPATH}/tokens/clan_url.txt", "r") as url_file:
+                url_str = url_file.read().strip()
+            req_data = requests.get(url_str)
+            req_html = req_data.text
+            clan_parser.feed(req_html)
+            clan_list = clan_parser.data
+            capped_users = add_cap_to_db(clan_list)
+        if not args.check:
+            with open(f"{ABSPATH}/checks/checkfile.csv", "r") as check_file:
+                reader = csv.DictReader(check_file)
+                for check in reader:
+                    add_check_to_db(check['name'], check['string'])
         if args.all:
-            run_bot(token)
+            run_bot(capped_users, token)
     elif args.init:
         init_db()
     elif args.bot:
-        run_bot(token)
+        run_bot([], token)
 
-def run_bot(token):
+def run_bot(capped_users, token):
     """Actually runs the bot"""
     # The regular bot definition things
     client = discord.Client()
@@ -118,14 +121,19 @@ def run_bot(token):
     @client.event
     async def on_message(message):
         """Handles commands based on messages sent"""
+
         channel = message.channel
         content = message.content
-
+        author = message.author
+        author_name = author.name
+        role_list = [role.name for role in author.roles]
+        command_map = {"$telos": telos_command,
+                       "$pet": pet_command}
         reaction_pct = random.random()
-        with open(f"{ABSPATH}/victim.txt", "r+") as victim_file:
-            victim = victim_file.read().strip().split(" ")[0]
-            author = message.author.name
-            if victim == author and reaction_pct < 1:
+
+        with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
+            victim = victim_file.read().strip().split("~")[0]
+            if victim == author_name and reaction_pct < 1:
                 emojis = list(client.get_all_emojis())
                 add_emoji = random.sample(emojis, 1)[0]
                 # for emoji in emojis:
@@ -138,6 +146,10 @@ def run_bot(token):
                 out_msg = func(content)
                 if out_msg is not None:
                     await client.send_message(channel, out_msg)
+
+        cap_channel = ""
+        with open(f"{ABSPATH}/tokens/channel.txt", "r+") as channel_file:
+            cap_channel = channel_file.read().strip()
 
         # schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
         # milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
@@ -189,13 +201,11 @@ def run_bot(token):
             except KeyError:
                 await client.send_message(channel, "Specified drop or boss not listed.")
 
-        elif content.startswith('!reboot'):
-            role_list = [role.name for role in message.author.roles]
-            if "cap handler" in role_list:
-                await client.send_message(channel, "Rebooting bots.")
-                subprocess.call(['./runschepbot.sh'])
+        elif content.startswith('!reboot') and "cap handler" in role_list:
+            await client.send_message(channel, "Rebooting bot.")
+            subprocess.call(['./runmathbot.sh'])
 
-        elif content.lower().startswith("<@!381213507997270017> when will"):
+        elif content.lower().startswith("<@!410521956954275850> when will"):
             await client.send_message(channel, f":crystal_ball: Soon:tm: :crystal_ball:")
 
         elif content.lower().startswith("markdonalds"):
@@ -205,19 +215,19 @@ def run_bot(token):
                     luke_emoji = emoji
             await client.send_message(channel, f"{luke_emoji}")
 
-        elif content.startswith("!add") and message.author.name == "Roscroft":
+        elif content.startswith("!add") and author_name == "Roscroft":
             new_row = content[5:]
             new_row += "\n"
-            with open(f"{ABSPATH}/responses.csv", "a+") as responses:
+            with open(f"{ABSPATH}/textfiles/responses.csv", "a+") as responses:
                 responses.write(new_row)
 
-        elif content.startswith("!player") and message.author.name == "Roscroft":
+        elif content.startswith("!player") and author_name == "Roscroft":
             victim = content[8:]
             now = datetime.datetime.now()
-            with open(f"{ABSPATH}/victim.txt", "w+") as victim_file:
+            with open(f"{ABSPATH}/textfiles/victim.txt", "w+") as victim_file:
                 victim_file.write(f"{victim}~{now}")
 
-        elif content.startswith("!pairings") and message.author.name == "Roscroft":
+        elif content.startswith("!pairings") and author_name == "Roscroft":
             server = client.get_server("339514092106678273")
             members = list(server.members)
             await client.send_message(
@@ -226,8 +236,92 @@ def run_bot(token):
             #     for member2 in members:
             #         await client.send_message(channel, f"--ship {member1} {member2}")
 
+        elif content.startswith('!vis'):
+            await client.send_message(channel, "It's actually ~vis")
+
+        elif channel == cap_channel:
+            if content.startswith('!delmsgs') and "cap handler" in role_list:
+                info = content.split(" ")[1]
+                if info == "all":
+                    async for msg in client.logs_from(channel, limit=1000):
+                        if author == client.user:
+                            time.sleep(1)
+                            await client.delete_message(msg)
+                elif info == "noncap":
+                    async for msg in client.logs_from(channel, limit=1000):
+                        if msg.author == client.user and "capped" not in msg.content:
+                            time.sleep(1)
+                            await client.delete_message(msg)
+                else:
+                    # Try to interpret info as a message id. Thankfully bots fail gracefully
+                    before_msg = await client.get_message(channel, info)
+                    async for msg in client.logs_from(channel, limit=1000, before=before_msg):
+                        if msg.author == client.user:
+                            time.sleep(1)
+                            await client.delete_message(msg)
+
+            elif content.startswith('!help'):
+                await client.send_message(
+                    channel, ("Commands:\n!delmsgs <argument> - using a message id will "
+                              "delete all messages before that id. Using 'all' will delete "
+                              "all messages, and using 'noncap' will delete all non-cap report "
+                              "messages.\n!update - force a manual check of all alogs.\n!list "
+                              "- generates a list of all users who have capped recently, by "
+                              "looking at cap reports in the channel. Note that if there are "
+                              "no cap messages, this will do nothing.\n!force <argument> - "
+                              "the bot will check the database for cap info about the user, "
+                              "and will send a message to the channel if cap info exists. "
+                              "Using 'all' will send an update message to the channel for "
+                              "every user in the database."))
+
+            elif content.startswith('!list'):
+                userlist = []
+                async for msg in client.logs_from(channel, limit=500):
+                    if author == client.user and ("capped" in msg.content):
+                        msg_lines = msg.content.split("\n")
+                        for cap_report in msg_lines:
+                            name_index = cap_report.find(" has")
+                            userlist.append(cap_report[:name_index])
+                print(userlist)
+                ret_str = ""
+                for i in range(len(userlist)):
+                    ret_str += f"{i+1}. {userlist[i]}\n"
+                await client.send_message(channel, ret_str)
+
+            elif content.startswith('!update') and "cap handler" in role_list:
+                await client.send_message(channel, "Manually updating...")
+                subprocess.call(['./runmathbot.sh'])
+
+            elif content.startswith('!force') and "cap handler" in role_list:
+                user = content.split(" ")[1]
+                if user == "all":
+                    capped_users = SESSION.query(Account.name, Account.last_cap_time).all()
+                    for (user, cap_date) in capped_users:
+                        cap_date = datetime.datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
+                        datetime_list = cap_date.split(" ")
+                        date_report = datetime_list[0]
+                        time_report = datetime_list[1]
+                        msg_string = (f"{user} has capped at the citadel on {date_report} ",
+                                      f"at {time_report}.")
+                        await client.send_message(
+                            discord.Object(id=cap_channel), msg_string)
+                else:
+                    cap_date = SESSION.query(
+                        Account.last_cap_time).filter(Account.name == user).first()
+                    if cap_date is not None:
+                        cap_date = cap_date[0]
+                        with open(f"{ABSPATH}/tokens/channel.txt", "r") as channel_file:
+                            cap_channel = channel_file.read().strip()
+                        cap_date = datetime.datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
+                        datetime_list = cap_date.split(" ")
+                        date_report = datetime_list[0]
+                        time_report = datetime_list[1]
+                        msg_string = (f"{user} has capped at the citadel on {date_report} ",
+                                      "at {time_report}.")
+                        await client.send_message(discord.Object(id=cap_channel), msg_string)
+
         else:
-            with open(f"{ABSPATH}/responses.csv", "r+") as responses:
+            with open(f"{ABSPATH}/textfiles/responses.csv", "r+") as responses:
                 reader = csv.DictReader(responses)
                 for response in reader:
                     if response['call'] in content.lower():
@@ -237,7 +331,7 @@ def run_bot(token):
         """Chooses a victim to add reactions to"""
         await client.wait_until_ready()
         now = datetime.datetime.now()
-        with open(f"{ABSPATH}/victim.txt", "r+") as victim_file:
+        with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
             victim_list = victim_file.read().strip().split("~")
             victim = victim_list[0]
             try:
@@ -255,11 +349,121 @@ def run_bot(token):
                 victim_file.truncate()
                 victim_file.write(f"{victim.name}~{now}")
 
-    command_map = {"$telos": telos_command,
-                   "$pet": pet_command}
+    async def report_caps(capped_users):
+        """Reports caps."""
+        await client.wait_until_ready()
+        with open(f"{ABSPATH}/tokens/channel.txt", "r") as channel_file:
+            cap_channel = channel_file.read().strip()
+        capped_users.reverse()
+        for (user, cap_date) in capped_users:
+            datetime_list = cap_date.split(" ")
+            date_report = datetime_list[0]
+            time_report = datetime_list[1]
+            msg_string = f"{user} has capped at the citadel on {date_report} at {time_report}."
+            await client.send_message(discord.Object(id=cap_channel), msg_string)
 
     client.loop.create_task(choose_victim())
+    client.loop.create_task(report_caps(capped_users))
     client.run(token)
+
+def check_cap(user):
+    """Given a user, return cap date if it is in their activity history."""
+    url_str = ""
+    with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
+        url_str = url_file.read().strip()
+    url_str += user
+    url_str += "&activities=20"
+    data = REQUEST_SESSION.get(url_str).content
+    data_json = json.loads(data)
+    try:
+        activities = data_json['activities']
+    except KeyError:
+        print(f"{user}'s profile is private.")
+        return None
+    for activity in activities:
+        if "capped" in activity['details']:
+            date = activity['date']
+            print(f"Cap found: {user} capped on {date}.")
+            return activity['date']
+    return None
+
+def add_cap_to_db(clan_list):
+    """Displays cap info for a list of users."""
+    add_list = []
+    capped_users = []
+    for user in clan_list:
+        cap_date = check_cap(user)
+        if cap_date is not None:
+            db_date = datetime.datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
+            # cap_date = datetime.datetime.strptime(cap_date, "%a, %d %b %Y %H:%M:%S %Z")
+            # If the cap date is not None, that means the user has a cap in their adventurer's log.
+            # We need to do a few things. First, check to see if the cap date is already stored in
+            # the database under last_cap_reported
+            previous_report = SESSION.query(
+                Account.last_cap_time).filter(Account.name == user).first()
+            # Two outcomes: previous report is None, or it has a value. If it is none, then we
+            # update it to be cap_date, and store the current time as last_cap_actual.
+            # If it has a value, and it is the same as cap_date, we don't do anything. If it
+            # has a different value, then we need to update the account dict in the same way as
+            # if the previous report is none.
+            if previous_report is None or previous_report[0] < db_date:
+                # Check to see if the time is in the database. If so, probably indicates a name
+                # change. If the time is already in, then we do not need to report it.
+                same_time = SESSION.query(
+                    Account.name, Account.last_cap_time).filter(
+                        Account.last_cap_time == db_date).first()
+                if same_time is not None:
+                    print("Name change found.")
+                else:
+                    primary_key_map = {"name": user}
+                    account_dict = {"name": user, "last_cap_time": db_date}
+                    account_record = Account(**account_dict)
+                    add_list.append(upsert(Account, primary_key_map, account_record))
+                    print(f"{user} last capped at the citadel on {cap_date}.")
+                    capped_users.append((user, cap_date))
+                    # print(capped_users)
+        else:
+            pass
+            # print(f"{user} has not capped at the citadel.")
+
+    add_list = [item for item in add_list if item is not None]
+    SESSION.add_all(add_list)
+    SESSION.commit()
+    return capped_users
+
+def make_check(username, search_string):
+    """Returns true if search string is in user history, or if it has previously been recorded."""
+    url_str = ""
+    with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
+        url_str = url_file.read().strip()
+    url_str += username
+    url_str += "&activities=20"
+    data = REQUEST_SESSION.get(url_str).content
+    data_json = json.loads(data)
+    try:
+        activities = data_json['activities']
+    except KeyError:
+        print(f"{username}'s profile is private.")
+        return None
+    for activity in activities:
+        if search_string in activity['details']:
+            return True
+    return False
+
+def add_check_to_db(username, search_string):
+    """Updates a user's record with results of the check."""
+    add_list = []
+    check_res = make_check(username, search_string)
+    if check_res is not None:
+        check_report = SESSION.query(CheckInfo.satisfies).filter(CheckInfo.name == username).first()
+        if check_report is None or check_report[0] is False:
+            primary_key_map = {"name": username}
+            account_dict = {"name": username, "satisfies": check_res}
+            account_record = CheckInfo(**account_dict)
+            add_list.append(upsert(CheckInfo, primary_key_map, account_record))
+    add_list = [item for item in add_list if item is not None]
+    SESSION.add_all(add_list)
+    SESSION.commit()
 
 def pet_chance(droprate, threshold, killcount):
     """Calls recursive pet_chance_counter function to determine chance of not getting pet."""
