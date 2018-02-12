@@ -3,6 +3,8 @@ tokens/
 checks/
 textfiles/
 dbs/
+__pycache__/
+__init__.py
 *.csv
 *.txt
 *.pid
