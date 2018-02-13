@@ -7,7 +7,6 @@ import json
 from discord.ext import commands
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
-STREAK_INCREASE = 11.58
 DROPRATES = json.load(open(f"{ABSPATH}/droprates.json"))
 BOSS_LIST = DROPRATES.keys()
 BOSS_STR = "(" + "|".join(BOSS_LIST) + ")"
