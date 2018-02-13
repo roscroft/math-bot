@@ -35,7 +35,7 @@ def droprate_reply(match):
     boss_entry = DROPRATES[boss]
     pet_info = boss_entry.get("pet")
     if pet_info is None:
-        raise ValueError(f"No pet information listed for {boss}.")
+        return f"No pet information listed for {boss}."
     pet_hm_info = boss_entry.get("pet (hm)")
     if boss == "telos":
         out_msg = (f"With <100% enrage, Tess has droprate 1/{pet_info[0]} and threshold "
@@ -55,7 +55,7 @@ def chance_helper(match, hardmode):
     boss_entry = DROPRATES[boss]
     pet_info = boss_entry.get("pet")
     if pet_info is None:
-        raise ValueError(f"No pet information listed for {boss}.")
+        return f"No pet information listed for {boss}."
     pet_hm_info = boss_entry.get("pet (hm)")
     killcount = int(match.group(2))
     if boss == "telos":
@@ -89,11 +89,11 @@ def manual_reply(match):
     threshold = int(match.group(2))
     killcount = int(match.group(3))
     if droprate < 1:
-        raise ValueError("Invalid droprate (use the denominator).")
+        return "Invalid droprate (use the denominator)."
     elif threshold < 0:
-        raise ValueError("Invalid threshold.")
+        return "Invalid threshold."
     elif killcount < 0:
-        raise ValueError("Invalid killcount")
+        return "Invalid killcount."
     else:
         chance = pet_chance(droprate, threshold, killcount)
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
@@ -108,22 +108,18 @@ class Pet():
     @commands.group()
     async def pet(self, ctx, *, args):
         """Runs a regex handler to pick a function based on the provided arguments."""
-        try:
-            regex_handlers = {}
-            regex_handlers[f"{BOSS_STR}"] = droprate_reply
-            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
-            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
-            regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
+        regex_handlers = {}
+        regex_handlers[f"{BOSS_STR}"] = droprate_reply
+        regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
+        regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
+        regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
 
-            for regex, func in regex_handlers.items():
-                match = re.compile(regex).fullmatch(args)
-                if match:
-                    out_msg = func(match)
+        for regex, func in regex_handlers.items():
+            match = re.compile(regex).fullmatch(args)
+            if match:
+                out_msg = func(match)
 
-            await ctx.send(out_msg)
-
-        except ValueError as inst:
-            await ctx.send(f"{inst}")
+        await ctx.send(out_msg)
 
     @pet.command()
     async def help(self, ctx):

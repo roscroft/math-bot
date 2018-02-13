@@ -72,7 +72,7 @@ def bounds_reply(match):
     start_enrage = int(match.group(1))
     end_enrage = int(match.group(2))
     if start_enrage > end_enrage:
-        raise ValueError("Start enrage must be less than end enrage.")
+        return "Start enrage must be less than end enrage."
     (no_lotd, lotd, streak_total) = expected_uniques(start_enrage, end_enrage)
     out_msg = (f"Streaking from {start_enrage}% to {end_enrage}%:\n"
                f"Expected number of kills: {streak_total}\n"
@@ -102,20 +102,9 @@ def chance_reply(match):
         enrage = 4000
     no_lotd = telos(enrage, streak, 0)
     lotd = telos(enrage, streak, 1)
-    print(no_lotd)
-    print(lotd)
     out_msg += (f"A kill with enrage {enrage}% and streak {streak}:\n"
                 f"Unique chance: 1/{int(1/no_lotd)} without LotD, "
                 f"1/{int(1/lotd)} with LotD.")
-    return out_msg
-
-def pet_reply(match):
-    """Returns data on pet queries."""
-    killcount = int(match.group(1))
-    droprate = 700
-    threshold = 300
-    pet = pet_chance(droprate, threshold, killcount)
-    out_msg = f"Your chance of not getting Tess by now is: {pet}%"
     return out_msg
 
 class Telos():
@@ -127,22 +116,17 @@ class Telos():
     @commands.group()
     async def telos(self, ctx, *, args):
         """Runs a regex handler to pick a function based on the provided arguments."""
-        try:
-            regex_handlers = {}
-            regex_handlers[r"\$telos (\d{1,4})% (\d+)%"] = bounds_reply
-            regex_handlers[r"\$telos (\d{1,4})%"] = start_reply
-            regex_handlers[r"\$telos (\d{1,4})% (\d+)kc"] = chance_reply
-            regex_handlers[r"\$telos pet (\d+)"] = pet_reply
+        regex_handlers = {}
+        regex_handlers[r"(\d{1,4})% (\d+)%"] = bounds_reply
+        regex_handlers[r"(\d{1,4})%"] = start_reply
+        regex_handlers[r"(\d{1,4})% (\d+)kc"] = chance_reply
 
-            for regex, func in regex_handlers.items():
-                match = re.compile(regex).fullmatch(args)
-                if match:
-                    out_msg = func(match)
+        for regex, func in regex_handlers.items():
+            match = re.compile(regex).fullmatch(args)
+            if match:
+                out_msg = func(match)
 
-            await ctx.send(out_msg)
-
-        except ValueError as inst:
-            await ctx.send(f"{inst}")
+        await ctx.send(out_msg)
 
     @telos.command()
     async def help(self, ctx):
@@ -156,6 +140,16 @@ class Telos():
                    "$telos pet <killcount> - returns the chance of not getting the pet "
                    "by the time you have hit the given killcount.\n"
                    "$telos help - returns the above list.")
+        await ctx.send(out_msg)
+
+    @telos.command()
+    async def pet(self, ctx, killcount):
+        """Displays pet chance with the given killcount."""
+        killcount = int(killcount)
+        droprate = 700
+        threshold = 300
+        pet = pet_chance(droprate, threshold, killcount)
+        out_msg = f"Your chance of not getting Tess by now is: {pet}%"
         await ctx.send(out_msg)
 
 def setup(bot):
