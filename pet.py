@@ -124,11 +124,11 @@ class Pet():
         """Runs a regex handler to pick a function based on the provided arguments."""
         try:
             regex_handlers = {}
-            regex_handlers[r"\$pet " + f"{BOSS_STR}"] = droprate_reply
-            regex_handlers[r"\$pet " + f"{BOSS_STR}" + r" (\d+)"] = chance_reply
-            regex_handlers[r"\$pet hm " + f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
-            regex_handlers[r"\$pet (\d+) (\d+) (\d+)"] = manual_reply
-            regex_handlers[r"\$pet help"] = help_reply
+            regex_handlers[f"{BOSS_STR}"] = droprate_reply
+            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
+            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
+            regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
+            regex_handlers[r"help"] = help_reply
 
             for regex, func in regex_handlers.items():
                 match = re.compile(regex).fullmatch(args)
