@@ -2,9 +2,9 @@
 """Runs the bot defined in mathbot.py."""
 import argparse
 import logging
-import mathbot
 import config
 import discord
+from mathbot import MathBot, initial_extensions
 
 def main():
     """Runs the stuff."""
@@ -16,15 +16,20 @@ def main():
 
 def run_bot():
     """Actually runs the bot"""
+    bot = MathBot()
+    for extension in initial_extensions:
+        try:
+            bot.load_extension(extension)
+        except Exception as error:
+            print(f'Failed to load extension {extension}.')
     logger = logging.getLogger('mathbot')
     logger.setLevel(logging.DEBUG)
     handler = logging.FileHandler(filename='mathbot.log', encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
     logger.addHandler(handler)
-    client = mathbot.MathBot()
-    client.loop.create_task(choose_victim())
-    client.loop.create_task(report_caps())
-    client.run(config.token)
+    # client.loop.create_task(choose_victim())
+    # client.loop.create_task(report_caps())
+    bot.run(config.token)
 
 if __name__ == "__main__":
-    main()
+    run_bot()

@@ -134,6 +134,36 @@ class Pet():
                    "$pet help - returns the above list.")
         await ctx.send(out_msg)
 
+    @commands.command()
+    async def bosslist(self, ctx):
+        """Returns the list of tracked bosses."""
+        bosses = list(DROPRATES.keys())
+        await ctx.send(f"The tracked bosses are: {bosses}")
+
+    @commands.command()
+    async def droplist(self, ctx, boss):
+        """Returns the entire droplist for a specified boss."""
+        try:
+            drops = list(DROPRATES[boss].keys())
+            out_msg = f"The drops for {boss} are: {drops}"
+        except KeyError:
+            out_msg = f"The requested boss isn't listed."
+        finally:
+            await ctx.send(out_msg)
+
+    @commands.command()
+    async def drop(self, ctx, *args):
+        """Returns the drop chance for a specified boss and drop."""
+        boss = args[0].lower()
+        item = " ".join(args[1:]).lower()
+        try:
+            droprate = DROPRATES[boss][item]
+            out_msg = f"The droprate for {boss} of {item} is: 1/{droprate}"
+        except KeyError:
+            out_msg = "Specified drop or boss not listed."
+        finally:
+            await ctx.send(out_msg)
+
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Pet(bot))
