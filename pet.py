@@ -100,26 +100,13 @@ def manual_reply(match):
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
     return out_msg
 
-def help_reply(match):
-    """Returns a help message for pets."""
-    del match
-    out_msg = ("List of commands:\n$pet <BOSS_STR> - displays pet droprate for boss."
-               "\n$pet <BOSS_STR> <killcount> - displays chance of getting boss pet with "
-               "given killcount."
-               "\n$pet hm <BOSS_STR> <killcount> - displays chance of getting boss pet in"
-               " hardmode with given killcount."
-               "\n$pet <droprate> <threshold> <killcount> - displays chance of getting "
-               "boss pet, with given droprate, threshold, and killcount."
-               "$pet help - returns the above list.")
-    return out_msg
-
 class Pet():
     """Defines the pet command and functions."""
 
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.group()
     async def pet(self, ctx, *, args):
         """Runs a regex handler to pick a function based on the provided arguments."""
         try:
@@ -128,7 +115,6 @@ class Pet():
             regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
             regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
             regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
-            regex_handlers[r"help"] = help_reply
 
             for regex, func in regex_handlers.items():
                 match = re.compile(regex).fullmatch(args)
@@ -139,6 +125,19 @@ class Pet():
 
         except ValueError as inst:
             await ctx.send(f"{inst}")
+
+    @pet.command()
+    async def help(self, ctx):
+        """Provides a help message for bot usage."""
+        out_msg = ("List of commands:\n$pet <BOSS_STR> - displays pet droprate for boss."
+                   "\n$pet <BOSS_STR> <killcount> - displays chance of getting boss pet with "
+                   "given killcount."
+                   "\n$pet hm <BOSS_STR> <killcount> - displays chance of getting boss pet in"
+                   " hardmode with given killcount."
+                   "\n$pet <droprate> <threshold> <killcount> - displays chance of getting "
+                   "boss pet, with given droprate, threshold, and killcount."
+                   "$pet help - returns the above list.")
+        await ctx.send(out_msg)
 
 def setup(bot):
     """Adds the cog to the bot."""
