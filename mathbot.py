@@ -38,18 +38,21 @@ def main():
 
 def run_bot(token):
     """Actually runs the bot"""
-    client = discord.Client()
+    client = MathBot()
+    client.loop.create_task(choose_victim())
+    client.loop.create_task(report_caps())
+    client.run(token)
 
-    @client.event
-    async def on_ready():
+class MathBot(discord.Client):
+    """Defines the mathbot class and functions."""
+    async def on_ready(self):
         """Prints bot initialization info"""
         print('Logged in as')
-        print(client.user.name)
-        print(client.user.id)
+        print(self.user.name)
+        print(self.user.id)
         print('------')
 
-    @client.event
-    async def on_message(message):
+    async def on_message(self, message):
         """Handles commands based on messages sent"""
 
         channel = message.channel
@@ -69,18 +72,18 @@ def run_bot(token):
         with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
             victim = victim_file.read().strip().split("~")[0]
             if victim == author_name and reaction_pct < 1:
-                emojis = list(client.get_all_emojis())
+                emojis = self.emojis()
                 add_emoji = random.sample(emojis, 1)[0]
                 # for emoji in emojis:
                 #     if emoji.name == "nice":
                 #         nice_emoji = emoji
-                await client.add_reaction(message, add_emoji)
+                await message.add_reaction(add_emoji)
 
         for command, func in command_map.items():
             if content.startswith(command):
                 out_msg = func(content)
                 if out_msg is not None:
-                    await client.send_message(channel, out_msg)
+                    await channel.send(out_msg)
 
 
         # schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
@@ -89,26 +92,26 @@ def run_bot(token):
         #     schep_has_tess = SESSION.query(
         #         HasTess.has_tess).filter(HasTess.name == "Schep").first()
         #     if schep_has_tess is None or schep_has_tess[0] is False:
-        #         await client.send_message(channel, f"Schep does not have Tess, make sure to let him know ;)", tts=True)
+        #         await channel.send(f"Schep does not have Tess, make sure to let him know ;)", tts=True)
         #     else:
-        #         await client.send_message(channel, f"Schep finally got Tess!")
+        #         await channel.send(f"Schep finally got Tess!")
 
         # elif (content.lower() in milow_questions) or (content.lower()[:-1] in milow_questions):
         #     schep_has_tess = SESSION.query(
         #         HasTess.has_tess).filter(HasTess.name == "Milow").first()
         #     if schep_has_tess is None or schep_has_tess[0] is False:
-        #         await client.send_message(channel, f"Milow does not have Ace.", tts=True)
+        #         await channel.send(f"Milow does not have Ace.", tts=True)
         #     else:
-        #         await client.send_message(channel, f"Milow finally got Ace!")
+        #         await channel.send(f"Milow finally got Ace!")
 
         if content.startswith("$help"):
             out_msg = "Try '$telos help' or '$pet help'."
-            await client.send_message(channel, out_msg)
+            await channel.send(out_msg)
 
         elif content.startswith("$bosslist"):
             droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
             bosses = list(droprate_json.keys())
-            await client.send_message(channel, f"The tracked bosses are: {bosses}")
+            await channel.send(f"The tracked bosses are: {bosses}")
 
         elif content.startswith("$droplist"):
             query_list = content.split(" ")
@@ -117,9 +120,9 @@ def run_bot(token):
             try:
                 droplist = droprate_json[boss]
                 drops = list(droplist.keys())
-                await client.send_message(channel, f"The drops for {boss} are: {drops}")
+                await channel.send(f"The drops for {boss} are: {drops}")
             except KeyError:
-                await client.send_message(channel, "The requested boss isn't listed.")
+                await channel.send("The requested boss isn't listed.")
 
         elif content.startswith("$drop"):
             query_list = content.split(" ")
@@ -128,24 +131,24 @@ def run_bot(token):
             droprate_json = json.load(open(f"{ABSPATH}/droprates.json"))
             try:
                 droprate = droprate_json[boss][item]
-                await client.send_message(
+                await self.send_message(
                     channel, f"The droprate for {boss} of {item} is: 1/{droprate}")
             except KeyError:
-                await client.send_message(channel, "Specified drop or boss not listed.")
+                await channel.send("Specified drop or boss not listed.")
 
         elif content.startswith('!reboot') and "cap handler" in role_list:
-            await client.send_message(channel, "Rebooting bot.")
+            await channel.send("Rebooting bot.")
             subprocess.call(['./runmathbot.sh'])
 
         elif content.lower().startswith("<@!410521956954275850> when will"):
-            await client.send_message(channel, f":crystal_ball: Soon:tm: :crystal_ball:")
+            await channel.send(f":crystal_ball: Soon:tm: :crystal_ball:")
 
         elif content.lower().startswith("markdonalds"):
-            emojis = client.get_all_emojis()
+            emojis = self.emojis()
             for emoji in emojis:
                 if emoji.name == "mRage":
                     luke_emoji = emoji
-            await client.send_message(channel, f"{luke_emoji}")
+            await channel.send(f"{luke_emoji}")
 
         elif content.startswith("!add") and author_name == "Roscroft":
             new_row = content[5:]
@@ -160,40 +163,36 @@ def run_bot(token):
                 victim_file.write(f"{victim}~{now}")
 
         elif content.startswith("!pairings") and author_name == "Roscroft":
-            server = client.get_server("339514092106678273")
+            server = self.get_guild(339514092106678273)
             members = list(server.members)
-            await client.send_message(
+            await self.send_message(
                 channel, f"This would result in {len(members)*len(members)} messages.")
             # for member1 in members:
             #     for member2 in members:
-            #         await client.send_message(channel, f"--ship {member1} {member2}")
+            #         await channel.send(f"--ship {member1} {member2}")
 
         elif content.startswith('!vis'):
-            await client.send_message(channel, "It's actually ~vis")
+            await channel.send("It's actually ~vis")
 
         elif channel_id == cap_channel:
             if content.startswith('!delmsgs') and ("cap handler" in role_list):
                 info = content.split(" ")[1]
                 if info == "all":
-                    async for msg in client.logs_from(channel, limit=1000):
-                        if msg.author == client.user:
-                            time.sleep(1)
-                            await client.delete_message(msg)
+                    async for msg in channel.history().filter(lambda m: m.author == self.user):
+                        await msg.delete()
                 elif info == "noncap":
-                    async for msg in client.logs_from(channel, limit=1000):
-                        if msg.author == client.user and "capped" not in msg.content:
-                            time.sleep(1)
-                            await client.delete_message(msg)
+                    async for msg in channel.history().filter(
+                        lambda m: m.author == self.user).filter(
+                                lambda m: "capped" not in m.content):
+                        await msg.delete()
                 else:
                     # Try to interpret info as a message id. Thankfully bots fail gracefully
-                    before_msg = await client.get_message(channel, info)
-                    async for msg in client.logs_from(channel, limit=1000, before=before_msg):
-                        if msg.author == client.user:
-                            time.sleep(1)
-                            await client.delete_message(msg)
+                    before_msg = await self.get_message(channel, info)
+                    async for msg in channel.history().filter(lambda m: m.author == self.user):
+                        await msg.delete()
 
             elif content.startswith('!help'):
-                await client.send_message(
+                await self.send_message(
                     channel, ("Commands:\n!delmsgs <argument> - using a message id will "
                               "delete all messages before that id. Using 'all' will delete "
                               "all messages, and using 'noncap' will delete all non-cap report "
@@ -208,8 +207,8 @@ def run_bot(token):
 
             elif content.startswith('!list'):
                 userlist = []
-                async for msg in client.logs_from(channel, limit=500):
-                    if msg.author == client.user and ("capped" in msg.content):
+                async for msg in self.logs_from(channel, limit=500):
+                    if msg.author == self.user and ("capped" in msg.content):
                         msg_lines = msg.content.split("\n")
                         for cap_report in msg_lines:
                             name_index = cap_report.find(" has")
@@ -218,10 +217,10 @@ def run_bot(token):
                 ret_str = ""
                 for i in range(len(userlist)):
                     ret_str += f"{i+1}. {userlist[i]}\n"
-                await client.send_message(channel, ret_str)
+                await channel.send(ret_str)
 
             elif content.startswith('!update') and ("cap handler" in role_list):
-                await client.send_message(channel, "Manually updating...")
+                await channel.send("Manually updating...")
                 subprocess.call(['./runmathbot.sh'])
 
             elif content.startswith('!force') and ("cap handler" in role_list):
@@ -235,7 +234,7 @@ def run_bot(token):
                         time_report = datetime_list[1]
                         msg_string = (f"{user} has capped at the citadel on {date_report} ",
                                       f"at {time_report}.")
-                        await client.send_message(
+                        await self.send_message(
                             discord.Object(id=cap_channel), msg_string)
                 else:
                     cap_date = SESSION.query(
@@ -250,18 +249,18 @@ def run_bot(token):
                         time_report = datetime_list[1]
                         msg_string = (f"{user} has capped at the citadel on {date_report} ",
                                       "at {time_report}.")
-                        await client.send_message(discord.Object(id=cap_channel), msg_string)
+                        await self.send_message(discord.Object(id=cap_channel), msg_string)
 
         else:
             with open(f"{ABSPATH}/textfiles/responses.csv", "r+") as responses:
                 reader = csv.DictReader(responses)
                 for response in reader:
                     if response['call'] in content.lower():
-                        await client.send_message(channel, f"{response['answer']}")
+                        await channel.send(f"{response['answer']}")
 
-    async def choose_victim():
+    async def choose_victim(self):
         """Chooses a victim to add reactions to"""
-        await client.wait_until_ready()
+        await self.wait_until_ready()
         now = datetime.datetime.now()
         with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
             victim_list = victim_file.read().strip().split("~")
@@ -273,7 +272,7 @@ def run_bot(token):
                 timestamp = None
                 hours_since = None
             if timestamp is None or victim == "" or hours_since < 6:
-                server = client.get_server("339514092106678273")
+                server = self.get_guild(339514092106678273)
                 members = list(server.members)
                 victim = random.sample(members, 1)[0]
                 print(f"New victim: {victim.name}")
@@ -282,9 +281,9 @@ def run_bot(token):
                 victim_file.write(f"{victim.name}~{now}")
 
     # async def report_caps(capped_users):
-    async def report_caps():
+    async def report_caps(self):
         """Reports caps."""
-        await client.wait_until_ready()
+        await self.wait_until_ready()
         with open(f"{ABSPATH}/tokens/channel.txt", "r") as channel_file:
             cap_channel = channel_file.read().strip()
         with open(f"{ABSPATH}/textfiles/new_caps.txt", "r") as new_caps:
@@ -292,11 +291,8 @@ def run_bot(token):
                 cap = cap.strip()
                 if not cap:
                     continue
-                await client.send_message(discord.Object(id=cap_channel), cap)
+                await self.send_message(discord.Object(id=cap_channel), cap)
 
-    client.loop.create_task(choose_victim())
-    client.loop.create_task(report_caps())
-    client.run(token)
 
 def pet_chance(droprate, threshold, killcount):
     """Calls recursive pet_chance_counter function to determine chance of not getting pet."""
