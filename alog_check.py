@@ -1,5 +1,6 @@
 #!/usr/bin/python3.6
 """Runs the alog checks and updates the database/outfiles appropriately"""
+import os
 import argparse
 import datetime
 import csv

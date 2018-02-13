@@ -272,14 +272,14 @@ def run_bot(token):
             except IndexError:
                 timestamp = None
                 hours_since = None
-            if timestamp is None or victim == "" or hours_since < 6:
-                server = client.get_server("339514092106678273")
-                members = list(server.members)
-                victim = random.sample(members, 1)[0]
-                print(f"New victim: {victim.name}")
-                victim_file.seek(0)
-                victim_file.truncate()
-                victim_file.write(f"{victim.name}~{now}")
+            # if timestamp is None or victim == "" or hours_since < 6:
+            server = client.get_server("339514092106678273")
+            members = list(server.members)
+            victim = random.sample(members, 1)[0]
+            print(f"New victim: {victim.name}")
+            victim_file.seek(0)
+            victim_file.truncate()
+            victim_file.write(f"{victim.name}~{now}")
 
     # async def report_caps(capped_users):
     async def report_caps():
