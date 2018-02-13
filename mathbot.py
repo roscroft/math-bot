@@ -16,6 +16,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from alog_check import Account
+from config import token
+from config import player_url
+from config import cap_channel
+from config import clan_url
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
 STREAK_INCREASE = 11.58
@@ -30,13 +34,10 @@ def main():
     parser = argparse.ArgumentParser(description="Choose script actions.")
     parser.add_argument("-b", "--bot", help="Runs only the bot.", action="store_true")
     args = parser.parse_args()
-    token = ""
-    with open(f"{ABSPATH}/tokens/token.txt", "r") as token_file:
-        token = token_file.read().strip()
     if args.bot:
-        run_bot(token)
+        run_bot()
 
-def run_bot(token):
+def run_bot():
     """Actually runs the bot"""
     client = discord.Client()
 
@@ -62,10 +63,6 @@ def run_bot(token):
                        "$pet": pet_command}
         reaction_pct = random.random()
 
-        cap_channel = ""
-        with open(f"{ABSPATH}/tokens/channel.txt", "r+") as channel_file:
-            cap_channel = channel_file.read().strip()
-
         with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
             victim = victim_file.read().strip().split("~")[0]
             if victim == author_name and reaction_pct < 1:
@@ -81,7 +78,6 @@ def run_bot(token):
                 out_msg = func(content)
                 if out_msg is not None:
                     await client.send_message(channel, out_msg)
-
 
         # schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
         # milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
@@ -242,8 +238,6 @@ def run_bot(token):
                         Account.last_cap_time).filter(Account.name == user).first()
                     if cap_date is not None:
                         cap_date = cap_date[0]
-                        with open(f"{ABSPATH}/tokens/channel.txt", "r") as channel_file:
-                            cap_channel = channel_file.read().strip()
                         cap_date = datetime.datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                         datetime_list = cap_date.split(" ")
                         date_report = datetime_list[0]
@@ -285,8 +279,6 @@ def run_bot(token):
     async def report_caps():
         """Reports caps."""
         await client.wait_until_ready()
-        with open(f"{ABSPATH}/tokens/channel.txt", "r") as channel_file:
-            cap_channel = channel_file.read().strip()
         with open(f"{ABSPATH}/textfiles/new_caps.txt", "r") as new_caps:
             for cap in new_caps:
                 cap = cap.strip()
