@@ -11,6 +11,8 @@ from sqlalchemy import Column, String, Boolean, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from config import player_url
+from config import clan_url
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
 ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
@@ -73,10 +75,7 @@ def main():
     if args.check:
         capped_users = []
         clan_parser = MyHTMLParser()
-        url_str = ""
-        with open(f"{ABSPATH}/tokens/clan_url.txt", "r") as url_file:
-            url_str = url_file.read().strip()
-        req_data = requests.get(url_str)
+        req_data = requests.get(clan_url)
         req_html = req_data.text
         clan_parser.feed(req_html)
         clan_list = clan_parser.data
@@ -93,12 +92,7 @@ def main():
 
 def check_alog(username, search_string):
     """Returns date if search string is in user history, or if it has previously been recorded."""
-    url_str = ""
-    with open(f"{ABSPATH}/tokens/url.txt", "r") as url_file:
-        url_str = url_file.read().strip()
-    url_str += username
-    url_str += "&activities=20"
-    data = REQUEST_SESSION.get(url_str).content
+    data = REQUEST_SESSION.get(f"{player_url}{username}&activities=20").content
     data_json = json.loads(data)
     try:
         activities = data_json['activities']

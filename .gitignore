@@ -1,10 +1,10 @@
 logs/
-tokens/
 checks/
 textfiles/
 dbs/
 __pycache__/
 __init__.py
+config.py
 *.csv
 *.txt
 *.pid
