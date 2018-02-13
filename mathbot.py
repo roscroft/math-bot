@@ -14,8 +14,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from alog_check import Account
 from config import cap_channel
-from rs_functions import pet_command
-from rs_functions import telos_command
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
 ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
@@ -42,8 +40,6 @@ class MathBot(discord.Client):
         author = message.author
         author_name = author.name
         role_list = [role.name for role in author.roles]
-        command_map = {"$telos": telos_command,
-                       "$pet": pet_command}
         reaction_pct = random.random()
 
         with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
