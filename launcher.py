@@ -27,8 +27,6 @@ def run_bot():
     handler = logging.FileHandler(filename='mathbot.log', encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
     logger.addHandler(handler)
-    # client.loop.create_task(choose_victim())
-    # client.loop.create_task(report_caps())
     bot.run(config.token)
 
 if __name__ == "__main__":

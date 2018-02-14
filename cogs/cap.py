@@ -1,11 +1,11 @@
 #!/usr/bin/python3.6
 """Defines the functions used for handling citadel caps."""
 import os
+import asyncio
 import datetime
 from discord.ext import commands
-from ..config import cap_channel
-from ..mathbot import SESSION
-from ..alog_check import Account
+from config import cap_channel
+from alog_check import SESSION, Account
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -14,6 +14,9 @@ class Cap():
 
     def __init__(self, bot):
         self.bot = bot
+        self.cap_ch = self.bot.get_channel(cap_channel)
+
+        self.cap_report = self.bot.loop.create_task(self.report_caps())
 
     async def in_cap_channel(self, ctx):
         """Checks if the context channel is the cap channel."""
@@ -24,7 +27,7 @@ class Cap():
         return ("cap handler" in ctx.author.roles) and ctx.channel == cap_channel
 
     @commands.command()
-    async def help(self, ctx):
+    async def cap_help(self, ctx):
         """Provides a help message for bot usage."""
         out_msg = ("Commands:\n!delmsgs <argument> - using a message id will "
                    "delete all messages before that id. Using 'all' will delete "
@@ -98,6 +101,18 @@ class Cap():
                 out_msg = (f"{user} has capped at the citadel on {date_report} ",
                            "at {time_report}.")
         await ctx.send(out_msg)
+
+    async def report_caps(self):
+        """Reports caps."""
+        await self.bot.wait_until_ready()
+        while not self.bot.is_closed():
+            with open(f"{ABSPATH}/textfiles/new_caps.txt", "r") as new_caps:
+                for cap in new_caps:
+                    cap = cap.strip()
+                    if not cap:
+                        continue
+                    await self.cap_ch.send(cap)
+            await asyncio.sleep(600)
 
 def setup(bot):
     """Adds the cog to the bot."""

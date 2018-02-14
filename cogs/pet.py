@@ -106,20 +106,24 @@ class Pet():
         self.bot = bot
 
     @commands.group()
-    async def pet(self, ctx, *, args):
+    async def pet(self, ctx, *, args=None):
         """Runs a regex handler to pick a function based on the provided arguments."""
-        regex_handlers = {}
-        regex_handlers[f"{BOSS_STR}"] = droprate_reply
-        regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
-        regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
-        regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
+        if not args is None:
+            regex_handlers = {}
+            regex_handlers[f"{BOSS_STR}"] = droprate_reply
+            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
+            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
+            regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
 
-        for regex, func in regex_handlers.items():
-            match = re.compile(regex).fullmatch(args)
-            if match:
-                out_msg = func(match)
+            for regex, func in regex_handlers.items():
+                match = re.compile(regex).fullmatch(args)
+                if match:
+                    out_msg = func(match)
 
-        await ctx.send(out_msg)
+            await ctx.send(out_msg)
+
+        else:
+            await ctx.send("Try '$pet help'.")
 
     @pet.command()
     async def help(self, ctx):
