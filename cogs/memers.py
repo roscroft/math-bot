@@ -3,6 +3,7 @@
 import os
 import random
 import asyncio
+import datetime
 from discord.ext import commands
 from config import guild_id
 
@@ -16,6 +17,19 @@ class Memers():
         self.bot.victim = ""
         self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
 
+    @commands.group()
+    async def cool(self, ctx):
+        """Says if a user is cool.
+        In reality this just checks if a subcommand is being invoked.
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send('No, {0.subcommand_passed} is not cool'.format(ctx))
+
+    @cool.command(name='bot')
+    async def _bot(self, ctx):
+        """Is the bot cool?"""
+        await ctx.send('Yes, the bot is cool.')
+
     @commands.command()
     async def markdonalds(self, ctx):
         """Lets the command markdonalds return the mRage emoji."""
@@ -28,9 +42,18 @@ class Memers():
         await ctx.send(f"It's actually ~vis")
 
     @commands.command()
+    async def reset(self, ctx):
+        """Calculates and sends the time until reset."""
+        utc_time = datetime.datetime.utcnow()
+        hours = 24-utc_time.hour-1
+        minutes = 60-utc_time.minute-1
+        seconds = 60-utc_time.second-1
+        await ctx.send(f"Reset is in {hours} hours, {minutes} minutes, and {seconds} seconds.")
+
+    @commands.command()
     @commands.is_owner()
     async def add(self, ctx, call, response):
-        """Adds a new call/response pair."""
+        """Adds a new call/response pair. Bot owner only!"""
         with open(f"{ABSPATH}/cogfiles/responses.csv", "a+") as responses:
             responses.write(f"{call},{response}\n")
         await ctx.send(f"New call/response pair added: {call} -> {response}")
@@ -38,9 +61,9 @@ class Memers():
     @commands.command()
     @commands.is_owner()
     async def player(self, ctx, player):
-        """Sets a new player victim."""
-        self.victim = player
-        await ctx.send(f"New victim chosen: {self.victim}")
+        """Sets a new player victim. Bot owner only!"""
+        self.bot.victim = player
+        await ctx.send(f"New victim chosen: {self.bot.victim}")
 
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
@@ -48,7 +71,7 @@ class Memers():
         while not self.bot.is_closed():
             guild_members = self.bot.get_guild(guild_id).members
             victim_member = random.sample(guild_members, 1)[0]
-            self.victim = victim_member.name
+            self.bot.victim = victim_member.name
             print(f"New victim: {self.victim}")
             await asyncio.sleep(10000)
 

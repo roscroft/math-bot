@@ -1,6 +1,5 @@
 logs/
 checks/
-textfiles/
 dbs/
 __pycache__/
 __init__.py

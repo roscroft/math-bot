@@ -1,15 +1,6 @@
-#!/usr/bin/python3.6
-"""Contains functions used for calculating various pet related things."""
-import os
-import re
+"""Contains functions needed for calculating drop chances."""
 import math
-import json
-from discord.ext import commands
-
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
-DROPRATES = json.load(open(f"{ABSPATH}/cogfiles/droprates.json"))
-BOSS_LIST = DROPRATES.keys()
-BOSS_STR = "(" + "|".join(BOSS_LIST) + ")"
+STREAK_INCREASE = 11.58
 
 def truncate_decimals(num):
     """Replaced my old function with a builtin, can decide on significance."""
@@ -99,72 +90,83 @@ def manual_reply(match):
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
     return out_msg
 
-class Pet():
-    """Defines the pet command and functions."""
+def telos(enrage, streak, lotd):
+    """Returns the drop chance at a given enrage and streak, with or without LotD."""
+    denominator = math.floor(10000.0/(10+0.25*(enrage+25*lotd)+3*streak))
+    cap = 9
+    if denominator < cap:
+        return 1.0/cap
+    return 1/denominator
 
-    def __init__(self, bot):
-        self.bot = bot
+def expected_uniques(start_enrage, end_enrage):
+    """Given a start enrage and end enrage, returns expected number of uniques and kills."""
+    streak_total = math.ceil((end_enrage-start_enrage)/STREAK_INCREASE)
+    sum_of_expectations_lotd = 0.0
+    sum_of_expectations_no_lotd = 0.0
+    for i in range(1, streak_total + 1):
+        enrage = start_enrage + STREAK_INCREASE*i
+        streak = i
+        sum_of_expectations_lotd += telos(enrage, streak, 1)
+        sum_of_expectations_no_lotd += telos(enrage, streak, 0)
+    sum_of_expectations_no_lotd = truncate_decimals(sum_of_expectations_no_lotd)
+    sum_of_expectations_lotd = truncate_decimals(sum_of_expectations_lotd)
+    return (sum_of_expectations_no_lotd, sum_of_expectations_lotd, streak_total)
 
-    @commands.group(invoke_without_command=True)
-    async def pet(self, ctx, *, args):
-        """Try '$pet help' for detailed pet command information."""
-        if ctx.invoked_subcommand is None:
-            regex_handlers = {}
-            regex_handlers[f"{BOSS_STR}"] = droprate_reply
-            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
-            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
-            regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
+def kills_until_unique(start_enrage):
+    """Given a start enrage, return the expected number of kills until a unique is obtained."""
+    expected_uniques_lotd = 0.0
+    expected_uniques_no_lotd = 0.0
+    streak = 0
+    while expected_uniques_lotd <= 1:
+        enrage = start_enrage + STREAK_INCREASE*streak
+        expected_uniques_lotd += telos(enrage, streak, 1)
+        streak += 1
+    kills_for_lotd_unique = streak
+    streak = 0
+    while expected_uniques_no_lotd <= 1:
+        enrage = start_enrage + STREAK_INCREASE*streak
+        expected_uniques_lotd += telos(enrage, streak, 1)
+        expected_uniques_no_lotd += telos(enrage, streak, 0)
+        streak += 1
+    kills_for_no_lotd_unique = streak
+    return (kills_for_no_lotd_unique, kills_for_lotd_unique)
 
-            out_msg = ""
+def bounds_reply(match):
+    """Returns data on enrage bounds queries."""
+    start_enrage = int(match.group(1))
+    end_enrage = int(match.group(2))
+    if start_enrage > end_enrage:
+        return "Start enrage must be less than end enrage."
+    (no_lotd, lotd, streak_total) = expected_uniques(start_enrage, end_enrage)
+    out_msg = (f"Streaking from {start_enrage}% to {end_enrage}%:\n"
+               f"Expected number of kills: {streak_total}\n"
+               f"Expected uniques: {no_lotd} without LotD, {lotd} with LotD.")
+    return out_msg
 
-            for regex, func in regex_handlers.items():
-                match = re.compile(regex).fullmatch(args)
-                if match:
-                    out_msg = func(match)
+def start_reply(match):
+    """Returns data on start enrage queries."""
+    out_msg = ""
+    start_enrage = int(match.group(1))
+    if start_enrage > 4000:
+        out_msg = "Using an enrage of 4000 (max chance).\n"
+        start_enrage = 4000
+    (no_lotd, lotd) = kills_until_unique(start_enrage)
+    out_msg += (f"Streaking from {start_enrage}%:\n"
+                f"Expected kills until unique: {no_lotd} without LotD, "
+                f"{lotd} with LotD.")
+    return out_msg
 
-            await ctx.send(out_msg)
-
-    @pet.command(name="help")
-    async def pet_help(self, ctx):
-        """Provides a help message for bot usage."""
-        out_msg = ("```Pet Cog\n\n"
-                   "  $pet <boss>                   - Displays pet droprate for the given boss.\n"
-                   "  $pet <boss> <kc>              - Displays chance of not getting pet by given"
-                   " killcount.\n"
-                   "  $pet hm <boss> <kc>           - Like above, but hardmode.\n"
-                   "  $pet <droprate> <thresh> <kc> - Manual pet function, input values to get"
-                   " chance of not getting pet.\n"
-                   "  $pet help                     - Returns this message.```")
-        await ctx.send(out_msg)
-
-    @commands.command()
-    async def bosslist(self, ctx):
-        """Returns the list of tracked bosses."""
-        bosses = list(DROPRATES.keys())
-        await ctx.send(f"The tracked bosses are: {bosses}")
-
-    @commands.command()
-    async def droplist(self, ctx, boss):
-        """Returns the entire droplist for a specified boss."""
-        try:
-            drops = list(DROPRATES[boss].keys())
-            out_msg = f"The drops for {boss} are: {drops}"
-        except KeyError:
-            out_msg = f"The requested boss isn't listed."
-        await ctx.send(out_msg)
-
-    @commands.command()
-    async def drop(self, ctx, *args):
-        """Returns the drop chance for a specified boss and drop."""
-        boss = args[0].lower()
-        item = " ".join(args[1:]).lower()
-        try:
-            droprate = DROPRATES[boss][item]
-            out_msg = f"The droprate for {boss} of {item} is: 1/{droprate}"
-        except KeyError:
-            out_msg = "Specified drop or boss not listed."
-        await ctx.send(out_msg)
-
-def setup(bot):
-    """Adds the cog to the bot."""
-    bot.add_cog(Pet(bot))
+def unique_chance_reply(match):
+    """Returns data on individual chance queries."""
+    out_msg = ""
+    enrage = int(match.group(1))
+    streak = int(match.group(2))
+    if enrage > 4000:
+        out_msg = "Using an enrage of 4000 (max chance).\n"
+        enrage = 4000
+    no_lotd = telos(enrage, streak, 0)
+    lotd = telos(enrage, streak, 1)
+    out_msg += (f"A kill with enrage {enrage}% and streak {streak}:\n"
+                f"Unique chance: 1/{int(1/no_lotd)} without LotD, "
+                f"1/{int(1/lotd)} with LotD.")
+    return out_msg

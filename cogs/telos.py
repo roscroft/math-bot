@@ -115,7 +115,7 @@ class Telos():
 
     @commands.group(invoke_without_command=True)
     async def telos(self, ctx, *, args):
-        """Runs a regex handler to pick a function based on the provided arguments."""
+        """Try '$telos help' for detailed telos command information."""
         regex_handlers = {}
         regex_handlers[r"(\d{1,4})% (\d+)%"] = bounds_reply
         regex_handlers[r"(\d{1,4})%"] = start_reply
@@ -131,15 +131,16 @@ class Telos():
     @telos.command()
     async def help(self, ctx):
         """Provides a help message for bot usage."""
-        out_msg = ("List of commands:\n$telos <enrage>% <enrage>% - returns expected "
-                   "uniques when streaking from the first enrage to the second enrage."
-                   "\n$telos <enrage>% - returns expected number of kills until a "
-                   "unique is obtained when starting at the given enrage.\n"
-                   "$telos <enrage>% <streak>kc - returns the chance of obtaining a "
-                   "unique with a kill at the given enrage and streak.\n"
-                   "$telos pet <killcount> - returns the chance of not getting the pet "
-                   "by the time you have hit the given killcount.\n"
-                   "$telos help - returns the above list.")
+        out_msg = ("```Telos Cog\n\n"
+                   "  $telos <enrage>% <enrage>%    - Expected uniques when streaking from first to"
+                   " second enrage.\n"
+                   "  $telos <enrage>%              - Expected number of kills until a unique"
+                   " starting at the given enrage.\n"
+                   "  $telos <enrage>% <streak>kc   - Chance of obtaining a unique with a kill at"
+                   " the given enrage and streak.\n"
+                   "  $telos pet <kc>               - Chance of not getting Tess by the time you"
+                   " hit the given killcount.\n"
+                   "  $telos help                   - Returns this message.```")
         await ctx.send(out_msg)
 
     @telos.command()

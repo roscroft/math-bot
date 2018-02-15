@@ -24,7 +24,7 @@ class MathBot(commands.Bot):
     """Defines the mathbot class and functions."""
 
     def __init__(self):
-        super().__init__(command_prefix="$", description=description)
+        super().__init__(command_prefix=["$", "!"], description=description)
 
         for extension in initial_extensions:
             try:
@@ -42,11 +42,13 @@ class MathBot(commands.Bot):
 
     async def on_message(self, message):
         """Handles commands based on messages sent"""
+        if message.author.bot:
+            return
+
         reaction_pct = random.random()
 
         if self.victim == message.author.name and reaction_pct < 1:
-            emojis = self.emojis()
-            add_emoji = random.sample(emojis, 1)[0]
+            add_emoji = random.sample(self.emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
         with open(f"{ABSPATH}/cogs/cogfiles/responses.csv", "r+") as responses:
@@ -56,11 +58,6 @@ class MathBot(commands.Bot):
                     await message.channel.send(f"{response['answer']}")
 
         await self.process_commands(message)
-
-    @commands.command()
-    async def reset(self, ctx):
-        """Calculates and send the time until reset."""
-        ctx.send("Eventually this will tell you how long until reset.")
 
 if __name__ == "__main__":
     bot = MathBot()
