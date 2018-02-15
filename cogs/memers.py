@@ -42,15 +42,6 @@ class Memers():
         await ctx.send(f"It's actually ~vis")
 
     @commands.command()
-    async def reset(self, ctx):
-        """Calculates and sends the time until reset."""
-        utc_time = datetime.datetime.utcnow()
-        hours = 24-utc_time.hour-1
-        minutes = 60-utc_time.minute-1
-        seconds = 60-utc_time.second-1
-        await ctx.send(f"Reset is in {hours} hours, {minutes} minutes, and {seconds} seconds.")
-
-    @commands.command()
     @commands.is_owner()
     async def add(self, ctx, call, response):
         """Adds a new call/response pair. Bot owner only!"""

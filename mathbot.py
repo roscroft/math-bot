@@ -14,7 +14,8 @@ ABSPATH = os.path.dirname(os.path.abspath(__file__))
 initial_extensions = ['cogs.pet',
                       'cogs.telos',
                       'cogs.cap',
-                      'cogs.memers']
+                      'cogs.memers',
+                      'cogs.rs']
 
 description = "A basic bot that runs a couple of uninteresting cogs."
 
