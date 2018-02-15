@@ -13,8 +13,8 @@ class Memers():
 
     def __init__(self, bot):
         self.bot = bot
-        self.victim = ""
-        self.victim_choice = self.bot.loop.create_task(self.choose_victim())
+        self.bot.victim = ""
+        self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
 
     @commands.command()
     async def markdonalds(self, ctx):
@@ -31,7 +31,7 @@ class Memers():
     @commands.is_owner()
     async def add(self, ctx, call, response):
         """Adds a new call/response pair."""
-        with open(f"{ABSPATH}/textfiles/responses.csv", "a+") as responses:
+        with open(f"{ABSPATH}/cogfiles/responses.csv", "a+") as responses:
             responses.write(f"{call},{response}\n")
         await ctx.send(f"New call/response pair added: {call} -> {response}")
 

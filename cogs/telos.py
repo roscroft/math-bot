@@ -113,7 +113,7 @@ class Telos():
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.group()
+    @commands.group(invoke_without_command=True)
     async def telos(self, ctx, *, args):
         """Runs a regex handler to pick a function based on the provided arguments."""
         regex_handlers = {}

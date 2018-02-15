@@ -7,7 +7,7 @@ import json
 from discord.ext import commands
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
-DROPRATES = json.load(open(f"{ABSPATH}/droprates.json"))
+DROPRATES = json.load(open(f"{ABSPATH}/cogfiles/droprates.json"))
 BOSS_LIST = DROPRATES.keys()
 BOSS_STR = "(" + "|".join(BOSS_LIST) + ")"
 
@@ -89,11 +89,11 @@ def manual_reply(match):
     threshold = int(match.group(2))
     killcount = int(match.group(3))
     if droprate < 1:
-        return "Invalid droprate (use the denominator)."
+        out_msg = "Invalid droprate (use the denominator)."
     elif threshold < 0:
-        return "Invalid threshold."
+        out_msg = "Invalid threshold."
     elif killcount < 0:
-        return "Invalid killcount."
+        out_msg = "Invalid killcount."
     else:
         chance = pet_chance(droprate, threshold, killcount)
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
@@ -106,14 +106,30 @@ class Pet():
         self.bot = bot
 
     @commands.group()
-    async def pet(self, ctx, *, args=None):
+    async def cool(self, ctx):
+        """Says if a user is cool.
+        In reality this just checks if a subcommand is being invoked.
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send('No, {0.subcommand_passed} is not cool'.format(ctx))
+
+    @cool.command(name='bot')
+    async def _bot(self, ctx):
+        """Is the bot cool?"""
+        await ctx.send('Yes, the bot is cool.')
+
+    @commands.group(invoke_without_command=True)
+    async def pet(self, ctx, *, args):
         """Runs a regex handler to pick a function based on the provided arguments."""
-        if not args is None:
+        print(args)
+        if ctx.invoked_subcommand is None:
             regex_handlers = {}
             regex_handlers[f"{BOSS_STR}"] = droprate_reply
             regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
             regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
             regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
+
+            out_msg = ""
 
             for regex, func in regex_handlers.items():
                 match = re.compile(regex).fullmatch(args)
@@ -122,20 +138,15 @@ class Pet():
 
             await ctx.send(out_msg)
 
-        else:
-            await ctx.send("Try '$pet help'.")
-
-    @pet.command()
-    async def help(self, ctx):
+    @pet.command(name="help")
+    async def pet_help(self, ctx):
         """Provides a help message for bot usage."""
-        out_msg = ("List of commands:\n$pet <BOSS_STR> - displays pet droprate for boss."
-                   "\n$pet <BOSS_STR> <killcount> - displays chance of getting boss pet with "
-                   "given killcount."
-                   "\n$pet hm <BOSS_STR> <killcount> - displays chance of getting boss pet in"
-                   " hardmode with given killcount."
-                   "\n$pet <droprate> <threshold> <killcount> - displays chance of getting "
-                   "boss pet, with given droprate, threshold, and killcount."
-                   "$pet help - returns the above list.")
+        out_msg = ("```Pet Module\n\n"
+                   "  $pet <boss>      - Displays pet droprate for the given boss.\n"
+                   "  $pet <boss> <kc> - Displays chance of not getting pet by given killcount.\n"
+                   "  $pet hm <boss> <kc> - Like above, but hardmode.\n"
+                   "  $pet <droprate> <thresh> <kc> - Manual pet function, input values to get chance of not getting pet.\n"
+                   "  $pet help        - Returns this message.```")
         await ctx.send(out_msg)
 
     @commands.command()
@@ -152,8 +163,7 @@ class Pet():
             out_msg = f"The drops for {boss} are: {drops}"
         except KeyError:
             out_msg = f"The requested boss isn't listed."
-        finally:
-            await ctx.send(out_msg)
+        await ctx.send(out_msg)
 
     @commands.command()
     async def drop(self, ctx, *args):
@@ -165,8 +175,7 @@ class Pet():
             out_msg = f"The droprate for {boss} of {item} is: 1/{droprate}"
         except KeyError:
             out_msg = "Specified drop or boss not listed."
-        finally:
-            await ctx.send(out_msg)
+        await ctx.send(out_msg)
 
 def setup(bot):
     """Adds the cog to the bot."""

@@ -168,7 +168,7 @@ def add_check_to_db(username, search_string):
 def write_to_file(users, type_code):
     """Writes new caps to a file, which is read when the bot runs."""
     file_dict = {0: "new_caps.txt"}
-    with open(f"{ABSPATH}/textfiles/{file_dict[type_code]}", "w+") as info_file:
+    with open(f"{ABSPATH}/cogs/cogfiles/{file_dict[type_code]}", "w+") as info_file:
         if type_code == 0:
             for (user, cap_date) in users:
                 datetime_list = cap_date.split(" ")

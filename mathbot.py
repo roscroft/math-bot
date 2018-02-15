@@ -1,4 +1,3 @@
-#!/usr/bin/python3.6
 """Runs bots for a Discord server."""
 import os
 import sys
@@ -44,15 +43,13 @@ class MathBot(commands.Bot):
     async def on_message(self, message):
         """Handles commands based on messages sent"""
         reaction_pct = random.random()
-        with open(f"{ABSPATH}/textfiles/victim.txt", "r+") as victim_file:
-            victim = victim_file.read().strip().split("~")[0]
 
-        if victim == message.author.name and reaction_pct < 1:
+        if self.victim == message.author.name and reaction_pct < 1:
             emojis = self.emojis()
             add_emoji = random.sample(emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
-        with open(f"{ABSPATH}/textfiles/responses.csv", "r+") as responses:
+        with open(f"{ABSPATH}/cogs/cogfiles/responses.csv", "r+") as responses:
             reader = csv.DictReader(responses)
             for response in reader:
                 if response['call'] in message.content.lower():
@@ -69,7 +66,7 @@ if __name__ == "__main__":
     bot = MathBot()
     logger = logging.getLogger('mathbot')
     logger.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(filename='mathbot.log', encoding='utf-8', mode='w')
+    handler = logging.FileHandler(filename='./logs/mathbot.log', encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
     logger.addHandler(handler)
     bot.run(token)

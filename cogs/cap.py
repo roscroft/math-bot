@@ -14,9 +14,9 @@ class Cap():
 
     def __init__(self, bot):
         self.bot = bot
-        self.cap_ch = self.bot.get_channel(cap_channel)
+        self.bot.cap_ch = self.bot.get_channel(cap_channel)
 
-        self.cap_report = self.bot.loop.create_task(self.report_caps())
+        self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
 
     async def in_cap_channel(self, ctx):
         """Checks if the context channel is the cap channel."""
@@ -106,12 +106,12 @@ class Cap():
         """Reports caps."""
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
-            with open(f"{ABSPATH}/textfiles/new_caps.txt", "r") as new_caps:
+            with open(f"{ABSPATH}/cogfiles/new_caps.txt", "r") as new_caps:
                 for cap in new_caps:
                     cap = cap.strip()
                     if not cap:
                         continue
-                    await self.cap_ch.send(cap)
+                    await self.bot.cap_ch.send(cap)
             await asyncio.sleep(600)
 
 def setup(bot):
