@@ -47,7 +47,7 @@ def droprate_reply(match):
         if pet_hm_info is not None:
             out_msg += (f"The pet from hardmode {boss} has droprate 1/{pet_hm_info[0]} and "
                         f"threshold {pet_hm_info[1]}.")
-    return out_msg
+    return f"```{out_msg}```"
 
 def chance_helper(match, hardmode):
     """Returns pet chance with the given killcount."""
@@ -73,7 +73,7 @@ def chance_helper(match, hardmode):
         else:
             chance = pet_chance(pet_info[0], pet_info[1], killcount)
             out_msg = f"Your chance of not getting the pet by now is: {chance}%"
-    return out_msg
+    return f"```{out_msg}```"
 
 def chance_reply(match):
     """Calls chance_helper and specifies normal mode."""
@@ -97,7 +97,7 @@ def manual_reply(match):
     else:
         chance = pet_chance(droprate, threshold, killcount)
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
-    return out_msg
+    return f"```{out_msg}```"
 
 class Pet():
     """Defines the pet command and functions."""
@@ -141,7 +141,9 @@ class Pet():
     async def bosslist(self, ctx):
         """Returns the list of tracked bosses."""
         bosses = list(DROPRATES.keys())
-        await ctx.send(f"The tracked bosses are: {bosses}")
+        out_msg = f"The tracked bosses are: {bosses}"
+        out_msg = f"```{out_msg}```"
+        await ctx.send(out_msg)
 
     @commands.command()
     async def droplist(self, ctx, boss):
@@ -151,6 +153,7 @@ class Pet():
             out_msg = f"The drops for {boss} are: {drops}"
         except KeyError:
             out_msg = f"The requested boss isn't listed."
+        out_msg = f"```{out_msg}```"
         await ctx.send(out_msg)
 
     @commands.command()
@@ -163,6 +166,7 @@ class Pet():
             out_msg = f"The droprate for {boss} of {item} is: 1/{droprate}"
         except KeyError:
             out_msg = "Specified drop or boss not listed."
+        out_msg = f"```{out_msg}```"
         await ctx.send(out_msg)
 
 def setup(bot):

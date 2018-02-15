@@ -74,9 +74,9 @@ def bounds_reply(match):
     if start_enrage > end_enrage:
         return "Start enrage must be less than end enrage."
     (no_lotd, lotd, streak_total) = expected_uniques(start_enrage, end_enrage)
-    out_msg = (f"Streaking from {start_enrage}% to {end_enrage}%:\n"
+    out_msg = (f"```Streaking from {start_enrage}% to {end_enrage}%:\n"
                f"Expected number of kills: {streak_total}\n"
-               f"Expected uniques: {no_lotd} without LotD, {lotd} with LotD.")
+               f"Expected uniques: {no_lotd} without LotD, {lotd} with LotD.```")
     return out_msg
 
 def start_reply(match):
@@ -87,9 +87,9 @@ def start_reply(match):
         out_msg = "Using an enrage of 4000 (max chance).\n"
         start_enrage = 4000
     (no_lotd, lotd) = kills_until_unique(start_enrage)
-    out_msg += (f"Streaking from {start_enrage}%:\n"
+    out_msg += (f"```Streaking from {start_enrage}%:\n"
                 f"Expected kills until unique: {no_lotd} without LotD, "
-                f"{lotd} with LotD.")
+                f"{lotd} with LotD.```")
     return out_msg
 
 def chance_reply(match):
@@ -102,9 +102,9 @@ def chance_reply(match):
         enrage = 4000
     no_lotd = telos(enrage, streak, 0)
     lotd = telos(enrage, streak, 1)
-    out_msg += (f"A kill with enrage {enrage}% and streak {streak}:\n"
+    out_msg += (f"```A kill with enrage {enrage}% and streak {streak}:\n"
                 f"Unique chance: 1/{int(1/no_lotd)} without LotD, "
-                f"1/{int(1/lotd)} with LotD.")
+                f"1/{int(1/lotd)} with LotD.```")
     return out_msg
 
 class Telos():
