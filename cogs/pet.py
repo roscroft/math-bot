@@ -43,10 +43,10 @@ def droprate_reply(match):
                    f"1/{pet_hm_info[0]} and threshold {pet_hm_info[1]}.")
     else:
         out_msg = (f"The pet from {boss} has droprate 1/{pet_info[0]} and threshold "
-                   f"{pet_info[1]}.")
+                   f"{pet_info[1]}.\n")
         if pet_hm_info is not None:
             out_msg += (f"The pet from hardmode {boss} has droprate 1/{pet_hm_info[0]} and "
-                        f"threshold {pet_hm_info[1]}.")
+                        f"threshold {pet_hm_info[1]}.\n")
     return f"```{out_msg}```"
 
 def chance_helper(match, hardmode):
