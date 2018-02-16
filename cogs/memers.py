@@ -59,7 +59,7 @@ class Memers():
             guild_members = self.bot.get_guild(guild_id).members
             victim_member = random.sample(guild_members, 1)[0]
             self.bot.victim = victim_member.name
-            print(f"New victim: {self.victim}")
+            print(f"New victim: {self.bot.victim}")
             await asyncio.sleep(10000)
 
 def setup(bot):

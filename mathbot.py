@@ -3,17 +3,22 @@ import os
 import sys
 import csv
 import random
+import asyncio
 import logging
 import traceback
 import discord
 from discord.ext import commands
 from config import token
 
-initial_extensions = ['cogs.pet',
-                      'cogs.telos',
-                      'cogs.cap',
-                      'cogs.memers',
-                      'cogs.rs']
+cog_path = "./cogs"
+do_not_use = ["__init__.py"]
+
+def extensions_generator():
+    """Returns a generator for all cog files that aren't in do_not_use."""
+    for cog_file in os.listdir(cog_path):
+        if (os.path.isfile(os.path.join(cog_path, cog_file)) and
+                cog_file.endswith(".py") and cog_file not in do_not_use):
+            yield f"cogs.{cog_file[:-3]}"
 
 description = "A basic bot that runs a couple of uninteresting cogs."
 
@@ -24,10 +29,13 @@ class MathBot(commands.Bot):
 
     def __init__(self):
         super().__init__(command_prefix=["$", "!"], description=description)
+        self.default_nick = "MathBot"
+        self.reset_nick = self.loop.create_task(self.reset_nickname())
 
-        for extension in initial_extensions:
+        for extension in extensions_generator():
             try:
                 self.load_extension(extension)
+                print(f"Successfully loaded extension {extension}.")
             except Exception:
                 print(f'Failed to load extension {extension}.', file=sys.stderr)
                 traceback.print_exc()
@@ -50,7 +58,7 @@ class MathBot(commands.Bot):
             add_emoji = random.sample(self.emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
-        with open(f"./cogs/cogfiles/responses.csv", "r+") as responses:
+        with open(f"./cogfiles/responses.csv", "r+") as responses:
             reader = csv.DictReader(responses)
             try:
                 for response in reader:
@@ -60,6 +68,14 @@ class MathBot(commands.Bot):
                 print("No responses in file!")
 
         await self.process_commands(message)
+
+    async def reset_nickname(self):
+        """Changes the bot's nickname back to what it should be."""
+        await self.wait_until_ready()
+        while not self.is_closed():
+            for guild in bot.guilds:
+                await guild.me.edit(nick=self.default_nick)
+            asyncio.sleep(600)
 
 if __name__ == "__main__":
     bot = MathBot()
