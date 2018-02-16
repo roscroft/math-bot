@@ -9,8 +9,6 @@ import discord
 from discord.ext import commands
 from config import token
 
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
-
 initial_extensions = ['cogs.pet',
                       'cogs.telos',
                       'cogs.cap',
@@ -52,11 +50,14 @@ class MathBot(commands.Bot):
             add_emoji = random.sample(self.emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
-        with open(f"{ABSPATH}/cogs/cogfiles/responses.csv", "r+") as responses:
+        with open(f"./cogs/cogfiles/responses.csv", "r+") as responses:
             reader = csv.DictReader(responses)
-            for response in reader:
-                if response['call'] in message.content.lower():
-                    await message.channel.send(f"{response['answer']}")
+            try:
+                for response in reader:
+                    if response['call'] in message.content.lower():
+                        await message.channel.send(f"{response['answer']}")
+            except KeyError:
+                print("No responses in file!")
 
         await self.process_commands(message)
 

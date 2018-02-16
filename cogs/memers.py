@@ -1,13 +1,9 @@
 #!/usr/bin/python3.6
 """Defines commands used for the Memers server."""
-import os
 import random
 import asyncio
-import datetime
 from discord.ext import commands
 from config import guild_id
-
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
 
 class Memers():
     """Defines the cap command and functions."""
@@ -45,7 +41,7 @@ class Memers():
     @commands.is_owner()
     async def add(self, ctx, call, response):
         """Adds a new call/response pair. Bot owner only!"""
-        with open(f"{ABSPATH}/cogfiles/responses.csv", "a+") as responses:
+        with open(f"./cogfiles/responses.csv", "a+") as responses:
             responses.write(f"{call},{response}\n")
         await ctx.send(f"New call/response pair added: {call} -> {response}")
 

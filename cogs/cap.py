@@ -1,13 +1,10 @@
 #!/usr/bin/python3.6
 """Defines the functions used for handling citadel caps."""
-import os
 import asyncio
 import datetime
 from discord.ext import commands
 from config import cap_channel
 from alog_check import SESSION, Account
-
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
 
 class Cap():
     """Defines the cap command and functions."""
@@ -112,7 +109,7 @@ class Cap():
         await self.bot.wait_until_ready()
         self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
-            with open(f"{ABSPATH}/cogfiles/new_caps.txt", "r") as new_caps:
+            with open(f"./cogfiles/new_caps.txt", "r+") as new_caps:
                 for cap in new_caps:
                     cap = cap.strip()
                     if not cap:

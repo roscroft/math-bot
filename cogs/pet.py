@@ -1,13 +1,10 @@
-#!/usr/bin/python3.6
 """Contains functions used for calculating various pet related things."""
-import os
 import re
 import math
 import json
 from discord.ext import commands
 
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
-DROPRATES = json.load(open(f"{ABSPATH}/cogfiles/droprates.json"))
+DROPRATES = json.load(open(f"./cogfiles/droprates.json"))
 BOSS_LIST = DROPRATES.keys()
 BOSS_STR = "(" + "|".join(BOSS_LIST) + ")"
 
@@ -47,7 +44,7 @@ def droprate_reply(match):
         if pet_hm_info is not None:
             out_msg += (f"The pet from hardmode {boss} has droprate 1/{pet_hm_info[0]} and "
                         f"threshold {pet_hm_info[1]}.\n")
-    return f"```{out_msg}```"
+    return f"{out_msg}"
 
 def chance_helper(match, hardmode):
     """Returns pet chance with the given killcount."""
@@ -73,7 +70,7 @@ def chance_helper(match, hardmode):
         else:
             chance = pet_chance(pet_info[0], pet_info[1], killcount)
             out_msg = f"Your chance of not getting the pet by now is: {chance}%"
-    return f"```{out_msg}```"
+    return f"{out_msg}"
 
 def chance_reply(match):
     """Calls chance_helper and specifies normal mode."""
@@ -97,7 +94,7 @@ def manual_reply(match):
     else:
         chance = pet_chance(droprate, threshold, killcount)
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
-    return f"```{out_msg}```"
+    return f"{out_msg}"
 
 class Pet():
     """Defines the pet command and functions."""
@@ -121,7 +118,7 @@ class Pet():
                 match = re.compile(regex).fullmatch(args)
                 if match:
                     out_msg = func(match)
-
+            out_msg = f"```{out_msg}```"
             await ctx.send(out_msg)
 
     @pet.command(name="help")

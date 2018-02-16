@@ -1,9 +1,7 @@
-logs/
-checks/
-dbs/
 __pycache__/
 __init__.py
 config.py
+runalogcheck.sh
 *.csv
 *.txt
 *.pid

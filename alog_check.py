@@ -14,8 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from config import player_url
 from config import clan_url
 
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
-ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
+ENGINE = create_engine(f"sqlite:///./dbs/clan_info.db")
 MASTER_SESSION = sessionmaker(bind=ENGINE)
 BASE = declarative_base()
 REQUEST_SESSION = requests.session()
@@ -83,10 +82,13 @@ def main():
         capped_users = add_cap_to_db(clan_list)
         write_to_file(capped_users, 0)
     elif args.user:
-        with open(f"{ABSPATH}/checks/checkfile.csv", "r") as check_file:
+        with open(f"./checks/checkfile.csv", "r+") as check_file:
             reader = csv.DictReader(check_file)
-            for check in reader:
-                add_check_to_db(check['name'], check['string'])
+            try:
+                for check in reader:
+                    add_check_to_db(check['name'], check['string'])
+            except KeyError:
+                print("No checks in file.")
     elif args.init:
         init_db()
 
@@ -168,7 +170,7 @@ def add_check_to_db(username, search_string):
 def write_to_file(users, type_code):
     """Writes new caps to a file, which is read when the bot runs."""
     file_dict = {0: "new_caps.txt"}
-    with open(f"{ABSPATH}/cogs/cogfiles/{file_dict[type_code]}", "w+") as info_file:
+    with open(f"./cogs/cogfiles/{file_dict[type_code]}", "w+") as info_file:
         if type_code == 0:
             for (user, cap_date) in users:
                 datetime_list = cap_date.split(" ")

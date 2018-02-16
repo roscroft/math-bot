@@ -1,11 +1,8 @@
-#!/usr/bin/python3.6
 """Contains functions used for calculating various Telos related things."""
-import os
 import re
 import math
 from discord.ext import commands
 
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
 STREAK_INCREASE = 11.58
 
 def truncate_decimals(num):
@@ -76,8 +73,8 @@ def bounds_reply(match):
     else:
         (no_lotd, lotd, streak_total) = expected_uniques(start_enrage, end_enrage)
         out_msg = (f"Streaking from {start_enrage}% to {end_enrage}%:\n"
-                f"Expected number of kills: {streak_total}\n"
-                f"Expected uniques: {no_lotd} without LotD, {lotd} with LotD.")
+                   f"Expected number of kills: {streak_total}\n"
+                   f"Expected uniques: {no_lotd} without LotD, {lotd} with LotD.")
     out_msg = f"```{out_msg}```"
     return out_msg
 
