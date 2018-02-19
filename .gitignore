@@ -2,6 +2,7 @@ __pycache__/
 __init__.py
 config.py
 runalogcheck.sh
+cogfiles/responses.json
 *.csv
 *.txt
 !requirements.txt
