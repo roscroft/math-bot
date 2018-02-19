@@ -1,9 +1,8 @@
 """Runs bots for a Discord server."""
 import os
 import sys
-import csv
+import json
 import random
-import asyncio
 import logging
 import traceback
 import discord
@@ -30,7 +29,6 @@ class MathBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix=["$", "!"], description=description)
         self.default_nick = "MathBot"
-        self.reset_nick = self.loop.create_task(self.reset_nickname())
 
         for extension in extensions_generator():
             try:
@@ -58,24 +56,29 @@ class MathBot(commands.Bot):
             add_emoji = random.sample(self.emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
-        with open(f"./cogfiles/responses.csv", "r+") as responses:
-            reader = csv.DictReader(responses)
+        with open(f"./cogfiles/responses.json", "r+") as response_file:
+            responses = json.load(response_file)
             try:
-                for response in reader:
-                    if response['call'] in message.content.lower():
-                        await message.channel.send(f"{response['answer']}")
+                for call, response in responses.items():
+                    if call in message.content.lower():
+                        await message.channel.send(f"{response}")
             except KeyError:
-                print("No responses in file!")
+                print("No response in file!")
 
         await self.process_commands(message)
 
-    async def reset_nickname(self):
-        """Changes the bot's nickname back to what it should be."""
-        await self.wait_until_ready()
-        while not self.is_closed():
-            for guild in bot.guilds:
-                await guild.me.edit(nick=self.default_nick)
-            asyncio.sleep(600)
+    async def on_member_update(self, before, after):
+        """Resets bot's nickname anytime it is changed."""
+        if before.id == self.user.id and before.nick != after.nick:
+            await after.edit(nick=self.default_nick)
+
+    # async def reset_nickname(self):
+    #     """Changes the bot's nickname back to what it should be."""
+    #     await self.wait_until_ready()
+    #     while not self.is_closed():
+    #         for guild in bot.guilds:
+    #             await guild.me.edit(nick=self.default_nick)
+    #         asyncio.sleep(600)
 
 if __name__ == "__main__":
     bot = MathBot()

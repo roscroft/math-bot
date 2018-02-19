@@ -41,8 +41,9 @@ class RS():
         await ctx.send(f"Reset is in {hours} hours, {minutes} minutes, and {seconds} seconds.")
 
     @commands.command()
-    async def alog(self, ctx, user):
+    async def alog(self, ctx, *, user):
         """Returns information from the user's adventurer's log."""
+        " ".join(user)
         await ctx.send(get_alog(user))
 
     @commands.command(aliases=['rax', 'spooder', 'araxxor'])

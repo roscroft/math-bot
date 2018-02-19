@@ -1,5 +1,6 @@
 #!/usr/bin/python3.6
 """Defines commands used for the Memers server."""
+import json
 import random
 import asyncio
 from discord.ext import commands
@@ -41,9 +42,37 @@ class Memers():
     @commands.is_owner()
     async def add(self, ctx, call, response):
         """Adds a new call/response pair. Bot owner only!"""
-        with open(f"./cogfiles/responses.csv", "a+") as responses:
-            responses.write(f"{call},{response}\n")
+        with open("./cogfiles/responses.json", "r") as response_file:
+            responses = json.load(response_file)
+        responses[call] = response
+        with open("./cogfiles/responses.json", "w") as response_file:
+            json.dump(responses, response_file)
         await ctx.send(f"New call/response pair added: {call} -> {response}")
+
+    @commands.command()
+    @commands.is_owner()
+    async def remove(self, ctx, call, response):
+        """Removes a call/response pair. Bot owner only!"""
+        with open("./cogfiles/responses.json", "r") as response_file:
+            responses = json.load(response_file)
+        if call in responses:
+            responses.pop(call)
+            with open("./cogfiles/responses.json", "w") as response_file:
+                json.dump(responses, response_file)
+            await ctx.send(f"Call/response pair {call} -> {response} removed.")
+        else:
+            await ctx.send(f"Call/response pair {call} -> {response} not found.")
+
+    @commands.command()
+    async def calls(self, ctx):
+        """Lists the existing call/responses pairs."""
+        out_msg = "Call -> Response\n"
+        with open("./cogfiles/responses.json") as response_file:
+            responses = json.load(response_file)
+            for call, response in responses.items():
+                out_msg += f"{call} -> {response}\n"
+        out_msg = f"```{out_msg}```"
+        await ctx.send(out_msg)
 
     @commands.command()
     @commands.is_owner()
