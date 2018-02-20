@@ -83,7 +83,6 @@ class Memers():
         await ctx.send(f"New victim chosen: {self.bot.victim}")
 
     @commands.command()
-    @commands.is_owner()
     async def gaster(self, ctx):
         """Makes fun of WD Gaster."""
         gaster_embed = discord.Embed(color=0x38fe4f)

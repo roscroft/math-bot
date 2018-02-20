@@ -66,7 +66,6 @@ class Cap():
         out_msg = ""
         if force_user == "all":
             capped_users = SESSION.query(Account.name, Account.last_cap_time).all()
-            print(capped_users)
             for (user, cap_date) in capped_users:
                 cap_date = datetime.datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                 datetime_list = cap_date.split(" ")
@@ -75,7 +74,8 @@ class Cap():
                 out_msg += (f"{user} has capped at the citadel on {date_report} "
                             f"at {time_report}.\n")
         else:
-            cap_date = SESSION.query(Account.last_cap_time).filter(Account.name == user).first()
+            cap_date = SESSION.query(
+                Account.last_cap_time).filter(Account.name == force_user).first()
             if cap_date is not None:
                 cap_date = cap_date[0]
                 cap_date = datetime.datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
@@ -83,7 +83,7 @@ class Cap():
                 date_report = datetime_list[0]
                 time_report = datetime_list[1]
                 out_msg = (f"{force_user} has capped at the citadel on {date_report} "
-                           "at {time_report}.")
+                           f"at {time_report}.")
         await ctx.send(out_msg)
 
     @commands.command()
