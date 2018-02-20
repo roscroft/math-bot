@@ -1,8 +1,9 @@
 __pycache__/
+cogfiles/
+!cogfiles/droprates.json
 __init__.py
 config.py
 runalogcheck.sh
-cogfiles/responses.json
 *.csv
 *.txt
 !requirements.txt

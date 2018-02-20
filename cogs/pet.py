@@ -44,7 +44,7 @@ def droprate_reply(match):
         if pet_hm_info is not None:
             out_msg += (f"The pet from hardmode {boss} has droprate 1/{pet_hm_info[0]} and "
                         f"threshold {pet_hm_info[1]}.\n")
-    return f"{out_msg}"
+    return out_msg
 
 def chance_helper(match, hardmode):
     """Returns pet chance with the given killcount."""
@@ -70,7 +70,7 @@ def chance_helper(match, hardmode):
         else:
             chance = pet_chance(pet_info[0], pet_info[1], killcount)
             out_msg = f"Your chance of not getting the pet by now is: {chance}%"
-    return f"{out_msg}"
+    return out_msg
 
 def chance_reply(match):
     """Calls chance_helper and specifies normal mode."""
@@ -94,7 +94,7 @@ def manual_reply(match):
     else:
         chance = pet_chance(droprate, threshold, killcount)
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
-    return f"{out_msg}"
+    return out_msg
 
 class Pet():
     """Defines the pet command and functions."""
@@ -112,14 +112,15 @@ class Pet():
             regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
             regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
 
-            out_msg = ""
-
-            for regex, func in regex_handlers.items():
-                match = re.compile(regex).fullmatch(args)
-                if match:
-                    out_msg = func(match)
-            out_msg = f"```{out_msg}```"
-            await ctx.send(out_msg)
+            try:
+                for regex, func in regex_handlers.items():
+                    match = re.compile(regex).fullmatch(args)
+                    if match:
+                        out_msg = func(match)
+                out_msg = f"```{out_msg}```"
+                await ctx.send(out_msg)
+            except UnboundLocalError:
+                pass
 
     @pet.command(name="help")
     async def pet_help(self, ctx):

@@ -3,12 +3,9 @@ import os
 import sys
 import json
 import random
-import logging
 import traceback
-import discord
 from discord.ext import commands
-from config import token
-from config import main_channel
+import config
 
 cog_path = "./cogs"
 do_not_use = ["__init__.py"]
@@ -39,6 +36,10 @@ class MathBot(commands.Bot):
                 print(f'Failed to load extension {extension}.', file=sys.stderr)
                 traceback.print_exc()
 
+    def run(self):
+        """Runs the bot with the token from the config file."""
+        super().run(config.token, reconnect=True)
+
     async def on_ready(self):
         """Prints bot initialization info"""
         print('Logged in as')
@@ -57,7 +58,7 @@ class MathBot(commands.Bot):
             add_emoji = random.sample(self.emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
-        if message.channel.id != main_channel:
+        if message.channel.id != config.main_channel:
             with open(f"./cogfiles/responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
@@ -73,20 +74,3 @@ class MathBot(commands.Bot):
         """Resets bot's nickname anytime it is changed."""
         if before.id == self.user.id and before.nick != after.nick:
             await after.edit(nick=self.default_nick)
-
-    # async def reset_nickname(self):
-    #     """Changes the bot's nickname back to what it should be."""
-    #     await self.wait_until_ready()
-    #     while not self.is_closed():
-    #         for guild in bot.guilds:
-    #             await guild.me.edit(nick=self.default_nick)
-    #         asyncio.sleep(600)
-
-if __name__ == "__main__":
-    bot = MathBot()
-    logger = logging.getLogger('mathbot')
-    logger.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(filename='./logs/mathbot.log', encoding='utf-8', mode='w')
-    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-    logger.addHandler(handler)
-    bot.run(token)

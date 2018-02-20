@@ -5,7 +5,37 @@ import random
 import asyncio
 import discord
 from discord.ext import commands
-from config import guild_id
+import config
+
+def add_to_json(filename, call, response):
+    """Adds a record to the given json file."""
+    with open(f"./cogfiles/{filename}", "r+") as response_file:
+        responses = json.load(response_file)
+    responses[call] = response
+    with open(f"./cogfiles/{filename}", "w") as response_file:
+        json.dump(responses, response_file)
+
+def remove_from_json(filename, call):
+    """Removes the given record from the given json file."""
+    with open(f"./cogfiles/{filename}", "r+") as response_file:
+        responses = json.load(response_file)
+    response = responses[call]
+    if call in responses:
+        responses.pop(call)
+        with open(f"./cogfiles/{filename}", "w") as response_file:
+            json.dump(responses, response_file)
+        return response
+    return None
+
+def list_from_json(filename):
+    """Lists all records from the given json file."""
+    out_msg = "Call -> Response\n"
+    with open(f"./cogfiles/{filename}") as response_file:
+        responses = json.load(response_file)
+        for call, response in responses.items():
+            out_msg += f"{call} -> {response}\n"
+    out_msg = f"```{out_msg}```"
+    return out_msg
 
 class Memers():
     """Defines the cap command and functions."""
@@ -39,40 +69,75 @@ class Memers():
         """Corrects usage of !vis."""
         await ctx.send(f"It's actually ~vis")
 
-    @commands.command()
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def add(self, ctx, call, response):
         """Adds a new call/response pair. Bot owner only!"""
-        with open("./cogfiles/responses.json", "r") as response_file:
-            responses = json.load(response_file)
-        responses[call] = response
-        with open("./cogfiles/responses.json", "w") as response_file:
-            json.dump(responses, response_file)
-        await ctx.send(f"New call/response pair added: {call} -> {response}")
+        filename = "responses.json"
+        add_to_json(filename, call, response)
+        out_msg = f"Added text call/response pair {call} -> {response}!"
+        await ctx.send(out_msg)
 
-    @commands.command()
+    @commands.command(name="rm", hidden=True)
     @commands.is_owner()
-    async def remove(self, ctx, call, response):
+    async def remove(self, ctx, call):
         """Removes a call/response pair. Bot owner only!"""
-        with open("./cogfiles/responses.json", "r") as response_file:
-            responses = json.load(response_file)
-        if call in responses:
-            responses.pop(call)
-            with open("./cogfiles/responses.json", "w") as response_file:
-                json.dump(responses, response_file)
-            await ctx.send(f"Call/response pair {call} -> {response} removed.")
+        filename = "responses.json"
+        response = remove_from_json(filename, call)
+        if response is not None:
+            out_msg = f"Removed text call/response pair {call} -> {response}!"
         else:
-            await ctx.send(f"Call/response pair {call} -> {response} not found.")
+            out_msg = f"Text call {call} not found."
+        await ctx.send(out_msg)
 
     @commands.command()
     async def calls(self, ctx):
         """Lists the existing call/responses pairs."""
-        out_msg = "Call -> Response\n"
-        with open("./cogfiles/responses.json") as response_file:
-            responses = json.load(response_file)
-            for call, response in responses.items():
-                out_msg += f"{call} -> {response}\n"
-        out_msg = f"```{out_msg}```"
+        filename = "responses.json"
+        out_msg = list_from_json(filename)
+        await ctx.send(out_msg)
+
+    @commands.group(invoke_without_command=True)
+    async def img(self, ctx, call):
+        """Provides the parser for image call/response commands."""
+        # if ctx.invoked_subcommand is None and ctx.channel.id != config.main_channel:
+        if ctx.invoked_subcommand is None:
+            with open(f"./cogfiles/image_responses.json", "r+") as response_file:
+                responses = json.load(response_file)
+                try:
+                    found_url = responses[call]
+                    image_embed = discord.Embed()
+                    image_embed.set_image(url=found_url)
+                    await ctx.send(content=None, embed=image_embed)
+                except KeyError:
+                    print("No response in file!")
+
+    @img.command(name="add")
+    @commands.is_owner()
+    async def _add(self, ctx, call, image_url):
+        """Adds a new image response. Bot owner only!"""
+        filename = "image_responses.json"
+        add_to_json(filename, call, image_url)
+        out_msg = f"Added image call/response pair {call} -> <{image_url}>!"
+        await ctx.send(out_msg)
+
+    @img.command(name="rm")
+    @commands.is_owner()
+    async def _remove(self, ctx, call):
+        """Removes an image response. Bot owner only!"""
+        filename = "image_responses.json"
+        image_url = remove_from_json(filename, call)
+        if image_url is not None:
+            out_msg = f"Removed image call/response pair {call} -> <{image_url}>!"
+        else:
+            out_msg = f"Image call {call} not found."
+        await ctx.send(out_msg)
+
+    @img.command(name="calls")
+    async def _calls(self, ctx):
+        """Lists the existing image call/responses pairs."""
+        filename = "image_responses.json"
+        out_msg = list_from_json(filename)
         await ctx.send(out_msg)
 
     @commands.command()
@@ -82,18 +147,11 @@ class Memers():
         self.bot.victim = player
         await ctx.send(f"New victim chosen: {self.bot.victim}")
 
-    @commands.command()
-    async def gaster(self, ctx):
-        """Makes fun of WD Gaster."""
-        gaster_embed = discord.Embed(color=0x38fe4f)
-        gaster_embed.set_image(url="http://i.imgur.com/iofK9fJ.png")
-        await ctx.send(content=None, embed=gaster_embed)
-
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
-            guild_members = self.bot.get_guild(guild_id).members
+            guild_members = self.bot.get_guild(config.guild_id).members
             victim_member = random.sample(guild_members, 1)[0]
             self.bot.victim = victim_member.name
             print(f"New victim: {self.bot.victim}")
