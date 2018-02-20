@@ -100,8 +100,7 @@ class Memers():
     @commands.group(invoke_without_command=True)
     async def img(self, ctx, call):
         """Provides the parser for image call/response commands."""
-        # if ctx.invoked_subcommand is None and ctx.channel.id != config.main_channel:
-        if ctx.invoked_subcommand is None:
+        if ctx.invoked_subcommand is None and ctx.channel.id != config.main_channel:
             with open(f"./cogfiles/image_responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
