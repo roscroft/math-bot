@@ -8,6 +8,7 @@ import traceback
 import discord
 from discord.ext import commands
 from config import token
+from config import main_channel
 
 cog_path = "./cogs"
 do_not_use = ["__init__.py"]
@@ -56,14 +57,15 @@ class MathBot(commands.Bot):
             add_emoji = random.sample(self.emojis, 1)[0]
             await message.add_reaction(add_emoji)
 
-        with open(f"./cogfiles/responses.json", "r+") as response_file:
-            responses = json.load(response_file)
-            try:
-                for call, response in responses.items():
-                    if call in message.content.lower():
-                        await message.channel.send(f"{response}")
-            except KeyError:
-                print("No response in file!")
+        if message.channel.id != main_channel:
+            with open(f"./cogfiles/responses.json", "r+") as response_file:
+                responses = json.load(response_file)
+                try:
+                    for call, response in responses.items():
+                        if call in message.content.lower():
+                            await message.channel.send(f"{response}")
+                except KeyError:
+                    print("No response in file!")
 
         await self.process_commands(message)
 

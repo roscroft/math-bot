@@ -3,6 +3,7 @@
 import json
 import random
 import asyncio
+import discord
 from discord.ext import commands
 from config import guild_id
 
@@ -80,6 +81,14 @@ class Memers():
         """Sets a new player victim. Bot owner only!"""
         self.bot.victim = player
         await ctx.send(f"New victim chosen: {self.bot.victim}")
+
+    @commands.command()
+    @commands.is_owner()
+    async def gaster(self, ctx):
+        """Makes fun of WD Gaster."""
+        gaster_embed = discord.Embed(color=0x38fe4f)
+        gaster_embed.set_image(url="http://i.imgur.com/iofK9fJ.png")
+        await ctx.send(content=None, embed=gaster_embed)
 
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
