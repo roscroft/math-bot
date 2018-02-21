@@ -158,8 +158,10 @@ class Memers():
 
     async def on_message(self, ctx):
         """Defines on_message behavior for responses and victim reaction adding."""
-        reaction_pct = random.random()
+        if ctx.author.bot:
+            return
 
+        reaction_pct = random.random()
         if self.bot.victim == ctx.author.name and reaction_pct < 1:
             add_emoji = random.sample(self.bot.emojis, 1)[0]
             await ctx.add_reaction(add_emoji)

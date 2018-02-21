@@ -5,17 +5,16 @@ import traceback
 from discord.ext import commands
 import config
 
-cog_path = "./cogs"
-do_not_use = ["__init__.py"]
-
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""
+    cog_path = "./cogs"
+    do_not_use = ["__init__.py"]
     for cog_file in os.listdir(cog_path):
         if (os.path.isfile(os.path.join(cog_path, cog_file)) and
                 cog_file.endswith(".py") and cog_file not in do_not_use):
             yield f"cogs.{cog_file[:-3]}"
 
-description = "A basic bot that runs a couple of uninteresting cogs."
+DESCRIPTION = "A basic bot that runs a couple of uninteresting cogs."
 
 # logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class MathBot(commands.Bot):
     """Defines the mathbot class and functions."""
 
     def __init__(self):
-        super().__init__(command_prefix=["$", "!"], description=description)
+        super().__init__(command_prefix=["$", "!"], description=DESCRIPTION)
         self.default_nick = "MathBot"
 
         for extension in extensions_generator():
