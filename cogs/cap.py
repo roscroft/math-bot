@@ -37,7 +37,7 @@ class Cap():
                    " messages in the channel.\n"
                    "  $cap force <arg>              - Forces the bot to update. Valid arguments are"
                    " all, or any player name.\n"
-                   "  $delmsgs <arg>                - Deletes bot messages. Arguments: all, noncap,"
+                   "  $cap del <arg>                - Deletes bot messages. Arguments: all, noncap,"
                    " or a specific message id (deletes all messages before given id).\n"
                    "  $cap help                     - Returns this message.```")
         await ctx.send(out_msg)
@@ -86,9 +86,9 @@ class Cap():
                            f"at {time_report}.")
         await ctx.send(out_msg)
 
-    @commands.command()
+    @cap.command(name="del")
     @commands.check(cap_handler_and_channel)
-    async def delmsgs(self, ctx, which):
+    async def _del(self, ctx, which):
         """Deletes specified message."""
         if which == "all":
             async for msg in ctx.channel.history().filter(lambda m: m.author == self.bot.user):
@@ -111,6 +111,7 @@ class Cap():
         while not self.bot.is_closed():
             with open(f"./cogfiles/new_caps.txt", "r+") as new_caps:
                 for cap in new_caps:
+                    print(cap)
                     cap = cap.strip()
                     if not cap:
                         continue

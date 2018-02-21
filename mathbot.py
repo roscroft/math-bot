@@ -1,8 +1,6 @@
 """Runs bots for a Discord server."""
 import os
 import sys
-import json
-import random
 import traceback
 from discord.ext import commands
 import config
@@ -51,22 +49,6 @@ class MathBot(commands.Bot):
         """Handles commands based on messages sent"""
         if message.author.bot:
             return
-
-        reaction_pct = random.random()
-
-        if self.victim == message.author.name and reaction_pct < 1:
-            add_emoji = random.sample(self.emojis, 1)[0]
-            await message.add_reaction(add_emoji)
-
-        if message.channel.id != config.main_channel:
-            with open(f"./cogfiles/responses.json", "r+") as response_file:
-                responses = json.load(response_file)
-                try:
-                    for call, response in responses.items():
-                        if call in message.content.lower():
-                            await message.channel.send(f"{response}")
-                except KeyError:
-                    print("No response in file!")
 
         await self.process_commands(message)
 

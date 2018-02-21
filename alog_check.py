@@ -14,7 +14,8 @@ from sqlalchemy.orm import sessionmaker
 from config import player_url
 from config import clan_url
 
-ENGINE = create_engine(f"sqlite:///./dbs/clan_info.db")
+ABSPATH = os.path.dirname(os.path.abspath(__file__))
+ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
 MASTER_SESSION = sessionmaker(bind=ENGINE)
 BASE = declarative_base()
 REQUEST_SESSION = requests.session()
@@ -150,6 +151,7 @@ def add_cap_to_db(clan_list):
     add_list = [item for item in add_list if item is not None]
     SESSION.add_all(add_list)
     SESSION.commit()
+    print("Done.")
     return capped_users
 
 def add_check_to_db(username, search_string):
@@ -170,7 +172,7 @@ def add_check_to_db(username, search_string):
 def write_to_file(users, type_code):
     """Writes new caps to a file, which is read when the bot runs."""
     file_dict = {0: "new_caps.txt"}
-    with open(f"./cogfiles/{file_dict[type_code]}", "w+") as info_file:
+    with open(f"{ABSPATH}/cogfiles/{file_dict[type_code]}", "w+") as info_file:
         if type_code == 0:
             for (user, cap_date) in users:
                 datetime_list = cap_date.split(" ")

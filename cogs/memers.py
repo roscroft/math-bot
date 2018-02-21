@@ -156,6 +156,24 @@ class Memers():
             print(f"New victim: {self.bot.victim}")
             await asyncio.sleep(10000)
 
+    async def on_message(self, ctx):
+        """Defines on_message behavior for responses and victim reaction adding."""
+        reaction_pct = random.random()
+
+        if self.bot.victim == ctx.author.name and reaction_pct < 1:
+            add_emoji = random.sample(self.bot.emojis, 1)[0]
+            await ctx.add_reaction(add_emoji)
+
+        if ctx.channel.id != config.main_channel:
+            with open(f"./cogfiles/responses.json", "r+") as response_file:
+                responses = json.load(response_file)
+                try:
+                    for call, response in responses.items():
+                        if call in ctx.content.lower():
+                            await ctx.channel.send(f"{response}")
+                except KeyError:
+                    print("No response in file!")
+
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Memers(bot))
