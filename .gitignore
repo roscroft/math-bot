@@ -1,9 +1,7 @@
 __pycache__/
-!cogfiles/droprates.json
-!cogfiles/tower.jl
-!cogfiles/vision.jl
-!cogfiles/sample.jl
-cogfiles/
+cogfiles/image_responses.json
+cogfiles/new_caps.txt
+cogfiles/responses.json
 __init__.py
 config.py
 runalogcheck.sh
