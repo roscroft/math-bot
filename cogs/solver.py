@@ -1,4 +1,5 @@
 """Calls the Julia Tower Puzzle solver."""
+import traceback
 import julia
 from discord.ext import commands
 
@@ -20,9 +21,18 @@ class Solver():
         bottom = list(map(int, bottom.split(" ")))
         left = list(map(int, left.split(" ")))
         num_elems = len(top)
+        # try:
+        #     output = self.solve_tower(num_elems, top, right, bottom, left)
+        # except Exception:
+        #     output = None
+        #     traceback.print_exc()
         output = self.solve_tower(num_elems, top, right, bottom, left)
-        await ctx.send("Solution found!")
-        await ctx.send(output)
+        print(output)
+        if output is None:
+            await ctx.send("No solution found. Check your input.")
+        else:
+            await ctx.send("Solution found!")
+            await ctx.send(output)
 
 def setup(bot):
     """Adds the cog to the bot."""
