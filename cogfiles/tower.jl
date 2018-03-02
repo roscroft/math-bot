@@ -108,5 +108,3 @@ function solve_tower(n_max, top, right, bottom, left)
     println(output)
     return output
 end
-
-solve_tower(3, [2 2 1], [1 2 2], [2 1 3], [3 1 2])

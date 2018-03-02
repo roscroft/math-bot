@@ -14,22 +14,18 @@ class Solver():
     @commands.command()
     async def solve(self, ctx, top, right, bottom, left):
         """Calls the julia solver with the given vision numbers."""
-        await ctx.send("Solving... (first time called will be slow)")
+        await ctx.send("Solving...")
         # Tower puzzles are always of size 5
         top = list(map(int, top.split(" ")))
         right = list(map(int, right.split(" ")))
         bottom = list(map(int, bottom.split(" ")))
         left = list(map(int, left.split(" ")))
         num_elems = len(top)
-        # try:
-        #     output = self.solve_tower(num_elems, top, right, bottom, left)
-        # except Exception:
-        #     output = None
-        #     traceback.print_exc()
-        output = self.solve_tower(num_elems, top, right, bottom, left)
-        print(output)
-        if output is None:
+        try:
+            output = self.solve_tower(num_elems, top, right, bottom, left)
+        except Exception:
             await ctx.send("No solution found. Check your input.")
+            traceback.print_exc()
         else:
             await ctx.send("Solution found!")
             await ctx.send(output)
