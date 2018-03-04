@@ -9,20 +9,20 @@ import config
 
 def add_to_json(filename, call, response):
     """Adds a record to the given json file."""
-    with open(f"./cogfiles/{filename}", "r+") as response_file:
+    with open(f"./cogs/memers/resources/{filename}", "r+") as response_file:
         responses = json.load(response_file)
     responses[call] = response
-    with open(f"./cogfiles/{filename}", "w") as response_file:
+    with open(f"./cogs/memers/resources/{filename}", "w") as response_file:
         json.dump(responses, response_file)
 
 def remove_from_json(filename, call):
     """Removes the given record from the given json file."""
-    with open(f"./cogfiles/{filename}", "r+") as response_file:
+    with open(f"./cogs/memers/resources/{filename}", "r+") as response_file:
         responses = json.load(response_file)
     response = responses[call]
     if call in responses:
         responses.pop(call)
-        with open(f"./cogfiles/{filename}", "w") as response_file:
+        with open(f"./cogs/memers/resources/{filename}", "w") as response_file:
             json.dump(responses, response_file)
         return response
     return None
@@ -30,7 +30,7 @@ def remove_from_json(filename, call):
 def list_from_json(filename):
     """Lists all records from the given json file."""
     out_msg = "Call -> Response\n"
-    with open(f"./cogfiles/{filename}") as response_file:
+    with open(f"./cogs/memers/resources/{filename}") as response_file:
         responses = json.load(response_file)
         for call, response in responses.items():
             out_msg += f"{call} -> {response}\n"
@@ -102,7 +102,7 @@ class Memers():
         """Provides the parser for image call/response commands."""
         # if ctx.invoked_subcommand is None and ctx.channel.id != config.main_channel:
         if ctx.invoked_subcommand is None:
-            with open(f"./cogfiles/image_responses.json", "r+") as response_file:
+            with open(f"./cogs/memers/resources/image_responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
                     found_url = responses[call]
@@ -167,8 +167,9 @@ class Memers():
             add_emoji = random.sample(self.bot.emojis, 1)[0]
             await ctx.add_reaction(add_emoji)
 
-        if ctx.channel.id != config.main_channel:
-            with open(f"./cogfiles/responses.json", "r+") as response_file:
+        # if ctx.channel.id != config.main_channel:
+        if True:
+            with open(f"./cogs/memers/resources/responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
                     for call, response in responses.items():

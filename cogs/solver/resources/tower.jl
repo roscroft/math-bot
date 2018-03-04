@@ -97,6 +97,7 @@ function solve_tower(n_max, top, right, bottom, left)
         @constraint(model, left_set["A"]*x[idx,:] .<= left_set["b"])
         @constraint(model, right_set["A"]*x[idx,end:-1:1] .<= right_set["b"])
     end
+    print(model)
     println("All constraints added.")
     solve(model)
     println("Model solved!")

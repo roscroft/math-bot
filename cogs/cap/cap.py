@@ -109,7 +109,7 @@ class Cap():
         await self.bot.wait_until_ready()
         self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
-            with open(f"./cogfiles/new_caps.txt", "r+") as new_caps:
+            with open(f"./cogs/cap/resources/new_caps.txt", "r+") as new_caps:
                 for cap in new_caps:
                     print(cap)
                     cap = cap.strip()

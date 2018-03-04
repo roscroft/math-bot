@@ -8,11 +8,17 @@ import config
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""
     cog_path = "./cogs"
-    do_not_use = ["__init__.py"]
-    for cog_file in os.listdir(cog_path):
-        if (os.path.isfile(os.path.join(cog_path, cog_file)) and
-                cog_file.endswith(".py") and cog_file not in do_not_use):
-            yield f"cogs.{cog_file[:-3]}"
+    do_not_use = ["__init__.py", "__pycache__"]
+    for item in os.listdir(cog_path):
+        path = os.path.join(cog_path, item)
+        if item not in do_not_use:
+            for cog in os.listdir(path):
+                if cog == f"{item}.py" and cog not in do_not_use:
+                    yield f"cogs.{item}.{cog[:-3]}"
+    # for cog_file in os.listdir(cog_path):
+    #     if (os.path.isfile(os.path.join(cog_path, cog_file)) and
+    #             cog_file.endswith(".py") and cog_file not in do_not_use):
+    #         yield f"cogs.{cog_file[:-3]}"
 
 DESCRIPTION = "A basic bot that runs a couple of uninteresting cogs."
 
