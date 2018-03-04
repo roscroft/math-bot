@@ -1,0 +1,3 @@
+[submodule "cogs/markov"]
+	path = cogs/markov
+	url = https://github.com/coizioc/MemersMarkov
