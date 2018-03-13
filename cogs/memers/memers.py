@@ -27,13 +27,16 @@ def remove_from_json(filename, call):
         return response
     return None
 
-def list_from_json(filename):
+def list_from_json(filename, img):
     """Lists all records from the given json file."""
     out_msg = "Call -> Response\n"
     with open(f"./cogs/memers/resources/{filename}") as response_file:
         responses = json.load(response_file)
         for call, response in responses.items():
-            out_msg += f"{call} -> {response}\n"
+            if not img:
+                out_msg += f"{call} -> {response}\n"
+            else:
+                out_msg += f"{call}\n"
     out_msg = f"```{out_msg}```"
     return out_msg
 
@@ -94,7 +97,7 @@ class Memers():
     async def calls(self, ctx):
         """Lists the existing call/responses pairs."""
         filename = "responses.json"
-        out_msg = list_from_json(filename)
+        out_msg = list_from_json(filename, False)
         await ctx.send(out_msg)
 
     @commands.group(invoke_without_command=True)
@@ -137,7 +140,7 @@ class Memers():
     async def _calls(self, ctx):
         """Lists the existing image call/responses pairs."""
         filename = "image_responses.json"
-        out_msg = list_from_json(filename)
+        out_msg = list_from_json(filename, True)
         await ctx.send(out_msg)
 
     @commands.command()
@@ -177,6 +180,17 @@ class Memers():
                             await ctx.channel.send(f"{response}")
                 except KeyError:
                     print("No response in file!")
+
+        if ctx.channel.id != config.main_channel:
+            if ctx.content.lower() in ["i'm dad", "im dad"]:
+                await ctx.channel.send(f"No you're not, you're {ctx.author.mention}.")
+
+            elif "i'm " in ctx.content.lower():
+                imindex = ctx.content.lower().index("i'm") + 4
+                await ctx.channel.send(f"Hi {ctx.content[imindex:]}, I'm Dad!")
+
+        if ctx.content.lower() == "out":
+            await ctx.channel.send(f":point_right: :door: :rage:")
 
 def setup(bot):
     """Adds the cog to the bot."""
