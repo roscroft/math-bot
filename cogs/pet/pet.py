@@ -109,7 +109,7 @@ class Pet():
             regex_handlers = {}
             regex_handlers[f"{BOSS_STR}"] = droprate_reply
             regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = chance_reply
-            regex_handlers[f"{BOSS_STR}" + r" (\d+)"] = hm_chance_reply
+            regex_handlers[f"{BOSS_STR}" + r" hm (\d+)"] = hm_chance_reply
             regex_handlers[r"(\d+) (\d+) (\d+)"] = manual_reply
 
             try:
