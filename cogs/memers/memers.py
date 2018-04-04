@@ -192,6 +192,9 @@ class Memers():
         if ctx.content.lower() == "out":
             await ctx.channel.send(f":point_right: :door: :rage:")
 
+        if ctx.content.lower() == "in":
+            await ctx.channel.send(f":grinning: :door: :point_left:")
+
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Memers(bot))

@@ -166,26 +166,31 @@ class Cap():
             clan_parser.feed(req_html)
             clan_list = clan_parser.data
             cap_list = []
+            print(f"Last build tick: {self.bot.last_build_tick}")
             for user in clan_list:
                 cap_date = await check_alog(user, "capped")
                 # Add the cap only if it exists, it's been since the last build tick, and
                 # there's no message already in the channel.
+                print(f"Cap date for {user}: {cap_date}")
+                if cap_date is not None and cap_date < self.bot.last_build_tick:
+                    print("Not reporting cap: before build tick.")
                 if cap_date is not None and cap_date > self.bot.last_build_tick:
-                    cap_str = f"{user} has capped"
+                    cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
+                    datetime_list = cap_date.split(" ")
+                    cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
+                               f" at {datetime_list[1]}.")
                     cap_msg_list = await self.bot.cap_ch.history().filter(
                         lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
                             lambda m, c_s=cap_str: c_s in m).flatten()
+                    if cap_msg_list:
+                        print("Not report cap: cap message exists.")
                     if not cap_msg_list:
-                        cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
-                        cap_list.append((user, cap_date))
+                        cap_list.append((user, cap_str))
 
             print(cap_list)
 
-            for user, cap_date in cap_list:
-                datetime_list = cap_date.split(" ")
-                msg = (f"{user} has capped at the citadel on {datetime_list[0]}"
-                       f" at {datetime_list[1]}.\n")
-                await self.bot.cap_ch.send(msg)
+            for user, cap_str in cap_list:
+                await self.bot.cap_ch.send(cap_str)
 
             await asyncio.sleep(600)
 
