@@ -1,3 +1,4 @@
 [submodule "cogs/markov"]
-	path = cogs/markov
-	url = https://github.com/coizioc/MemersMarkov
+    path = cogs/markov
+    url = https://github.com/coizioc/MemersMarkov
+    branch = master

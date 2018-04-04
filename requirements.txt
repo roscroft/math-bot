@@ -3,7 +3,6 @@ astroid==1.6.1
 async-timeout==2.0.0
 certifi==2018.1.18
 chardet==3.0.4
-discord.py==1.0.0a1433+g9d3d8e0
 idna==2.6
 isort==4.3.4
 julia==0.1.5
