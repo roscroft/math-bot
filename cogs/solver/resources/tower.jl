@@ -5,6 +5,8 @@ using JuMP, Gurobi
 function coefficients(n_max)
 
     function count(order)
+        # This function calculates the vision number of a sequence of numbers.
+        # For example, count([1 3 2 4 5]) returns 4.
         vision_num = 0
         highest_seen = 0
         for i in order
@@ -17,6 +19,10 @@ function coefficients(n_max)
     end
 
     function build_num_dict(print_dict)
+        # This function calculates all permutations of the sequence 1:n_max, and then
+        # calculates the vision numbers for each permutation. Finally, it returns a dictionary
+        # that has all vision numbers for the sequence as its keys, and the corresponding 
+        # permutations with that vision number as its values.
         vision_nums = Dict()
         perms = collect(permutations(1:n_max))
 
@@ -42,6 +48,8 @@ function coefficients(n_max)
     end
     
     function build_ineqs_dict()
+        # This function uses the Polyhedral.jl package to make a new dictionary that maps vision
+        # numbers to the inequalities that enforce those vision numbers.
         vision_nums = build_num_dict(false)
         #= ineqs = Dict{Int64,Dict{String,Array{Any,Any}}} =#
         ineqs = Dict()
@@ -70,6 +78,10 @@ function coefficients(n_max)
 end
 
 function solve_tower(n_max, top, right, bottom, left)
+    # In this final function, we build and solve the model, using constraints that control the 
+    # binary variables responsible for enforcing the uniqueness properties of the solution values,
+    # as well as the generated constraints that enforce the appropriate vision numbers for each
+    # row and column.
     println("N: ",n_max)
     println("Top: ",top)
     println("Right: ",right)
