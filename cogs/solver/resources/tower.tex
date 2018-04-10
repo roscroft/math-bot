@@ -11,16 +11,15 @@
 % --------------------------------------------------------------
  
 \title{Tower Puzzle Mixed Integer Programming Formulation}
-\author{iMath}
 \date{1MAR18}
 \maketitle
  
 \begin{section}{Abstract}
-This is an analysis of the Tower Puzzle introduced by the most recent Treasure Trail updates in the game RuneScape. We first briefly describe some general concepts and motivations behind mixed integer programming formulations and solution techniques. Using these concepts as a baseline, we discuss their applicability to the Tower Puzzle, and provide a formulation and general solution technique for solving any size instance of the puzzle.
+This is an analysis of a puzzle we call the Tower Puzzle. We first briefly describe some general concepts and motivations behind mixed integer programming formulations and solution techniques. Using these concepts as a baseline, we discuss their applicability to the Tower Puzzle, and provide a formulation and general solution technique for solving any size instance of the puzzle.
 \end{section}
  
 \begin{section}{Mixed Integer Programming}
-Mixed integer programming (MIP) problems are a specific type of decision problems in which some of the decision variables take on integer values. They are broadly useful for problems like scheduling, production, and routing; any time problem values are discrete quantities, MIPs tend to be appropriate modeling choices.
+Mixed integer programming (MIP) problems are a specific class of optimization problems in which some of the decision variables take on integer values. They are broadly useful for problems like scheduling, production, and routing; any time problem values are discrete quantities, MIPs tend to be appropriate modeling choices.
 
 In general, integer programming problems are in NP. For sufficiently small problems, however, and for certain types of MIPs, solution times in commercial solvers tend to be extremely fast. As a result, modeling using MIPs tends to be both straightforward and suited to most applications.
 \end{section}
@@ -68,7 +67,7 @@ Luckily for us (and for whoever is implementing this formulation as a solution t
 There is some necessary bookkeeping to keep all the indices straight, but we'll ignore that for now.
 \end{subsection}
 \begin{subsection}{Formulation}
-We can finally put it all together and retrieve our formulation. Without further ado:
+We can finally put it all together and retrieve our formulation:
 \begin{align*}
     \begin{split}
         \mbox{min }&0 \\
@@ -88,12 +87,12 @@ We can finally put it all together and retrieve our formulation. Without further
 \end{section}
 
 \begin{section}{Implementation and Results} 
-If you've read this far, congratulations! We've been through quite a bit, so I'll make this section brief. As mentioned in the previous section, I used a Julia package called Polyhedra.jl to generate the constraints in the set $P_v$. The rest of the code is also in Julia, and basically generates the other constraints described in the full formulation. The code will be attached in the Reddit post, and you can ask any questions of me via Discord, username Roscroft#8299. 
+As mentioned in the previous section, I used a Julia package called Polyhedra.jl to generate the constraints in the set $P_v$. The rest of the code is also in Julia, and basically generates the other constraints described in the full formulation.
 
-I also interfaced the solver with my clan's Discord bot. Unfortunately, I cannot make it widely available because of my MIP solver. I used Gurobi, which requires an academic license, and I am not able to distribute the license necessary to make the solver work anywhere. It is possible to use a free solver, but I found out today that Alt1 has already implemented a solver and so I imagine the demand for a Discord bot solution will be quite low. 
+I have also interfaced this solver with the Discord bot in the parent math-bot repo. Unfortunately, I cannot make it widely available because of my choice of a MIP solver. I used Gurobi, which requires an academic license, and I am not able to distribute the license necessary to make the solver work elsewhere. It is possible to use a free solver, but I will not be downloading and packaging one.
 
-To its credit, however, this integer program executes \textit{extremely} quickly; the solver output says it takes 0.00 seconds to find a solution (which means it's about as quick as it can be) for $n=5$. In my first iteration, I actually regenerate the constraints every time (which in general takes a nontrivial amount of time) and still managed to get near-instantaneous solutions. So it works!
+To its credit, however, this integer program executes \textit{extremely} quickly; the solver output takes 0.00 seconds to find a solution (which means it's entirely handled by the presolve stage) for $n=5$. In my first iteration, I actually regenerate the constraints every time (which in general takes a nontrivial amount of time) and still managed to get near-instantaneous solutions. So it works well!
 
-I understand that this got pretty technical, so if anyone has any questions, please feel free to ask. This area is my research focus, and solving problems like this one is a lot of fun. Thanks for reading!
+I have not yet tried larger problem instances, mostly due to not having valid vision numbers for anything more than a 5x5 problem. It is not particularly difficult to generate valid vision numbers - naively, all we would need to do is first generate a random valid solution, then retrieve the vision numbers representing the solution, then pass those as constaints to the MIP to check the solution time for large problems. Alternatively, there may be a way to exploit duality such that we retrieve a formulation that generates valid vision numbers for any sized problem. We do not attempt this here, but it is certainly an area for future research.
 \end{section}
 \end{document}
