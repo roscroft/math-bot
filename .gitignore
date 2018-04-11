@@ -1,7 +1,6 @@
 __pycache__/
 resources/
-subs/markov/resources/fanfic/
-subs/markov/resources/people/
+subs/markov/resources/
 __init__.py
 config.py
 runalogcheck.sh
