@@ -25,15 +25,18 @@ def add_to_json(filename, call, response, user, is_img):
         responses = json.load(response_file)
     can_submit = check_votes(user)
     if can_submit:
-        responses[call] = {}
-        responses[call]["response"] = response
-        responses[call]["user"] = user
-        with open(f"./resources/{filename}", "w") as response_file:
-            json.dump(responses, response_file)
-        if not is_img:
-            out_msg = f"{user} added call/response pair '{call}' -> '{response}'!"
+        if call in responses:
+            out_msg = "This call already exists. Please use a different one."
         else:
-            out_msg = f"{user} added image call/response pair {call} -> <{response}>!"
+            responses[call] = {}
+            responses[call]["response"] = response
+            responses[call]["user"] = user
+            with open(f"./resources/{filename}", "w") as response_file:
+                json.dump(responses, response_file)
+            if not is_img:
+                out_msg = f"{user} added call/response pair '{call}' -> '{response}'!"
+            else:
+                out_msg = f"{user} added image call/response pair {call} -> <{response}>!"
     else:
         out_msg = "You are banned from submitting."
     return out_msg
@@ -132,7 +135,7 @@ class Memers():
             out_msg = f"Removed {user}'s text call/response pair '{call}' -> '{response}'!"
         else:
             out_msg = f"Text call '{call}' not found."
-        await ctx.send(out_msg)
+        await ctx.author.send(out_msg)
 
     @commands.command()
     async def calls(self, ctx):
@@ -156,7 +159,7 @@ class Memers():
             with open(f"./resources/image_responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
-                    found_url = responses[call]
+                    found_url = responses[call]['response']
                     image_embed = discord.Embed()
                     image_embed.set_image(url=found_url)
                     await ctx.send(content=None, embed=image_embed)
@@ -164,9 +167,9 @@ class Memers():
                     print("No response in file!")
 
     @img.command(name="add")
-    @commands.is_owner()
+    # @commands.is_owner()
     async def _add(self, ctx, call, image_url):
-        """Adds a new image response. Bot owner only!"""
+        """Adds a new image response."""
         filename = "image_responses.json"
         user = ctx.author.name
         out_msg = add_to_json(filename, call, image_url, user, True)
@@ -182,7 +185,7 @@ class Memers():
             out_msg = f"Removed image call/response pair {call} -> <{image_url}>!"
         else:
             out_msg = f"Image call {call} not found."
-        await ctx.send(out_msg)
+        await ctx.author.send(out_msg)
 
     @img.command(name="calls")
     async def _calls(self, ctx):
@@ -196,7 +199,7 @@ class Memers():
         """Lists all added pairs by a given user."""
         filename = "image_responses.json"
         out_msg = list_user_adds(filename, user, True)
-        await ctx.send(out_msg)
+        await ctx.author.send(out_msg)
 
     @commands.command()
     async def voteban(self, ctx, user):

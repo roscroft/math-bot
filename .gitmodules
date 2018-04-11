@@ -1,3 +1,3 @@
-[submodule "subs/MemersMarkov"]
-	path = subs/MemersMarkov
+[submodule "subs/markov"]
+	path = subs/markov
 	url = https://github.com/coizioc/MemersMarkov
