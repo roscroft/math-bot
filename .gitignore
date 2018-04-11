@@ -1,9 +1,7 @@
 __pycache__/
-cogs/memers/resources/image_responses.json
-cogs/memers/resources/responses.json
-cogs/cap/resources/new_caps.txt
-cogs/markov/resources/fanfic/
-cogs/markov/resources/people/
+resources/
+subs/markov/resources/fanfic/
+subs/markov/resources/people/
 __init__.py
 config.py
 runalogcheck.sh

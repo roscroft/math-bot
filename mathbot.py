@@ -8,17 +8,21 @@ import config
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""
     cog_path = "./cogs"
-    do_not_use = ["__init__.py", "__pycache__", "solver"]
-    for item in os.listdir(cog_path):
-        path = os.path.join(cog_path, item)
+    do_not_use = ["__init__.py", "__pycache__"]
+    for cog in os.listdir(cog_path):
+        if cog not in do_not_use:
+            yield f"cogs.{cog[:-3]}"
+
+def submodules_generator():
+    """Returns a generator for all submodule add-ons."""
+    sub_path = "./subs"
+    do_not_use = ["solver"]
+    for item in os.listdir(sub_path):
+        path = os.path.join(sub_path, item)
         if item not in do_not_use:
-            for cog in os.listdir(path):
-                if cog == f"{item}.py" and cog not in do_not_use:
-                    yield f"cogs.{item}.{cog[:-3]}"
-    # for cog_file in os.listdir(cog_path):
-    #     if (os.path.isfile(os.path.join(cog_path, cog_file)) and
-    #             cog_file.endswith(".py") and cog_file not in do_not_use):
-    #         yield f"cogs.{cog_file[:-3]}"
+            for sub in os.listdir(path):
+                if sub == f"{item}.py" and sub not in do_not_use:
+                    yield f"subs.{item}.{sub[:-3]}"
 
 DESCRIPTION = "A basic bot that runs a couple of uninteresting cogs."
 
@@ -37,6 +41,14 @@ class MathBot(commands.Bot):
                 print(f"Successfully loaded extension {extension}.")
             except Exception:
                 print(f'Failed to load extension {extension}.', file=sys.stderr)
+                traceback.print_exc()
+
+        for submodule in submodules_generator():
+            try:
+                self.load_extension(submodule)
+                print(f"Successfully loaded submodule {submodule}.")
+            except Exception:
+                print(f'Failed to load submodule {submodule}.', file=sys.stderr)
                 traceback.print_exc()
 
     def run(self):

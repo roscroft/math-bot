@@ -4,7 +4,7 @@ import math
 import json
 from discord.ext import commands
 
-DROPRATES = json.load(open(f"./cogs/pet/resources/droprates.json"))
+DROPRATES = json.load(open(f"./resources/droprates.json"))
 BOSS_LIST = DROPRATES.keys()
 BOSS_STR = "(" + "|".join(BOSS_LIST) + ")"
 

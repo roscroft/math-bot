@@ -56,7 +56,7 @@ class Cap():
 
     def __init__(self, bot):
         self.bot = bot
-        self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
+        # self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
         self.bot.build_tick_checker = self.bot.loop.create_task(self.get_build_tick())
 
     async def in_cap_channel(ctx):
@@ -155,6 +155,11 @@ class Cap():
         """Rechecks all alogs for cap messages."""
         await self.report_caps()
 
+    @cap.command(name="tick")
+    async def tick(self, ctx):
+        """Displays the last build tick."""
+        await ctx.send(f"Last build tick: {self.bot.last_build_tick}")
+
     async def report_caps(self):
         """Reports caps."""
         await self.bot.wait_until_ready()
@@ -171,7 +176,8 @@ class Cap():
                 cap_date = await check_alog(user, "capped")
                 # Add the cap only if it exists, it's been since the last build tick, and
                 # there's no message already in the channel.
-                print(f"Cap date for {user}: {cap_date}")
+                if cap_date is not None:
+                    print(f"Cap date for {user}: {cap_date}")
                 if cap_date is not None and cap_date < self.bot.last_build_tick:
                     print("Not reporting cap: before build tick.")
                 if cap_date is not None and cap_date > self.bot.last_build_tick:

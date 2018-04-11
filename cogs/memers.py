@@ -7,36 +7,80 @@ import discord
 from discord.ext import commands
 import config
 
-def add_to_json(filename, call, response):
+MAX_VOTES = 10
+
+def check_votes(user):
+    """Checks if a user is banned from submitting."""
+    with open(f"./resources/votes.json", "r+") as vote_file:
+        votes = json.load(vote_file)
+    if user in votes:
+        votes_left = MAX_VOTES - len(votes[user])
+    else:
+        votes_left = MAX_VOTES
+    return votes_left > 0
+
+def add_to_json(filename, call, response, user, is_img):
     """Adds a record to the given json file."""
-    with open(f"./cogs/memers/resources/{filename}", "r+") as response_file:
+    with open(f"./resources/{filename}", "r+") as response_file:
         responses = json.load(response_file)
-    responses[call] = response
-    with open(f"./cogs/memers/resources/{filename}", "w") as response_file:
-        json.dump(responses, response_file)
+    can_submit = check_votes(user)
+    if can_submit:
+        responses[call] = {}
+        responses[call]["response"] = response
+        responses[call]["user"] = user
+        with open(f"./resources/{filename}", "w") as response_file:
+            json.dump(responses, response_file)
+        if not is_img:
+            out_msg = f"{user} added call/response pair '{call}' -> '{response}'!"
+        else:
+            out_msg = f"{user} added image call/response pair {call} -> <{response}>!"
+    else:
+        out_msg = "You are banned from submitting."
+    return out_msg
 
 def remove_from_json(filename, call):
     """Removes the given record from the given json file."""
-    with open(f"./cogs/memers/resources/{filename}", "r+") as response_file:
+    with open(f"./resources/{filename}", "r+") as response_file:
         responses = json.load(response_file)
-    response = responses[call]
     if call in responses:
+        response = responses[call]["response"]
+        user = responses[call]["user"]
         responses.pop(call)
-        with open(f"./cogs/memers/resources/{filename}", "w") as response_file:
+        with open(f"./resources/{filename}", "w") as response_file:
             json.dump(responses, response_file)
-        return response
-    return None
+        return (response, user)
+    return (None, None)
 
-def list_from_json(filename, img):
+def list_from_json(filename, is_img):
     """Lists all records from the given json file."""
     out_msg = "Call -> Response\n"
-    with open(f"./cogs/memers/resources/{filename}") as response_file:
+    with open(f"./resources/{filename}", "r+") as response_file:
         responses = json.load(response_file)
-        for call, response in responses.items():
-            if not img:
-                out_msg += f"{call} -> {response}\n"
+        for call, response_dict in responses.items():
+            response = response_dict["response"]
+            user = response_dict["user"]
+            if not is_img:
+                out_msg += f"{call} -> {response}, by {user}\n"
             else:
                 out_msg += f"{call}\n"
+    out_msg = f"```{out_msg}```"
+    return out_msg
+
+def list_user_adds(filename, user, is_img):
+    """Lists all adds by a user."""
+    out_msg = "Call -> Response\n"
+    with open(f"./resources/{filename}", "r+") as response_file:
+        responses = json.load(response_file)
+        for call, response_dict in responses.items():
+            response = response_dict["response"]
+            sub_user = response_dict["user"]
+            if user == sub_user:
+                if not is_img:
+                    out_msg += f"{call} -> {response}\n"
+                else:
+                    out_msg += f"{call}\n"
+    if out_msg == "Call -> Response\n":
+        out_msg = f"Nothing submitted by {user}."
     out_msg = f"```{out_msg}```"
     return out_msg
 
@@ -47,6 +91,8 @@ class Memers():
         self.bot = bot
         self.bot.victim = ""
         self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
+        self.bot.pct = 0.10
+        self.bot.max_votes = MAX_VOTES
 
     @commands.group()
     async def cool(self, ctx):
@@ -68,17 +114,12 @@ class Memers():
         await ctx.send(f"{mrage}")
 
     @commands.command()
-    async def vis(self, ctx):
-        """Corrects usage of !vis."""
-        await ctx.send(f"It's actually ~vis")
-
-    @commands.command(hidden=True)
-    @commands.is_owner()
+    # @commands.is_owner()
     async def add(self, ctx, call, response):
-        """Adds a new call/response pair. Bot owner only!"""
+        """Adds a new call/response pair. Bad additions will get your privileges revoked."""
         filename = "responses.json"
-        add_to_json(filename, call, response)
-        out_msg = f"Added text call/response pair {call} -> {response}!"
+        user = ctx.author.name
+        out_msg = add_to_json(filename, call, response, user, False)
         await ctx.send(out_msg)
 
     @commands.command(name="rm", hidden=True)
@@ -86,11 +127,11 @@ class Memers():
     async def remove(self, ctx, call):
         """Removes a call/response pair. Bot owner only!"""
         filename = "responses.json"
-        response = remove_from_json(filename, call)
+        (user, response) = remove_from_json(filename, call)
         if response is not None:
-            out_msg = f"Removed text call/response pair {call} -> {response}!"
+            out_msg = f"Removed {user}'s text call/response pair '{call}' -> '{response}'!"
         else:
-            out_msg = f"Text call {call} not found."
+            out_msg = f"Text call '{call}' not found."
         await ctx.send(out_msg)
 
     @commands.command()
@@ -98,14 +139,21 @@ class Memers():
         """Lists the existing call/responses pairs."""
         filename = "responses.json"
         out_msg = list_from_json(filename, False)
-        await ctx.send(out_msg)
+        await ctx.author.send(out_msg)
+
+    @commands.command()
+    async def blame(self, ctx, user):
+        """Lists all added pairs by a given user."""
+        filename = "responses.json"
+        out_msg = list_user_adds(filename, user, False)
+        await ctx.author.send(out_msg)
 
     @commands.group(invoke_without_command=True)
     async def img(self, ctx, call):
         """Provides the parser for image call/response commands."""
         # if ctx.invoked_subcommand is None and ctx.channel.id != config.main_channel:
         if ctx.invoked_subcommand is None:
-            with open(f"./cogs/memers/resources/image_responses.json", "r+") as response_file:
+            with open(f"./resources/image_responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
                     found_url = responses[call]
@@ -120,8 +168,8 @@ class Memers():
     async def _add(self, ctx, call, image_url):
         """Adds a new image response. Bot owner only!"""
         filename = "image_responses.json"
-        add_to_json(filename, call, image_url)
-        out_msg = f"Added image call/response pair {call} -> <{image_url}>!"
+        user = ctx.author.name
+        out_msg = add_to_json(filename, call, image_url, user, True)
         await ctx.send(out_msg)
 
     @img.command(name="rm")
@@ -141,7 +189,69 @@ class Memers():
         """Lists the existing image call/responses pairs."""
         filename = "image_responses.json"
         out_msg = list_from_json(filename, True)
+        await ctx.author.send(out_msg)
+
+    @img.command(name="blame")
+    async def _blame(self, ctx, user):
+        """Lists all added pairs by a given user."""
+        filename = "image_responses.json"
+        out_msg = list_user_adds(filename, user, True)
         await ctx.send(out_msg)
+
+    @commands.command()
+    async def voteban(self, ctx, user):
+        """Votes to disallow a user from adding images or text calls."""
+        filename = "votes.json"
+        try:
+            with open(f"./resources/{filename}", "r+") as vote_file:
+                votes = json.load(vote_file)
+        except FileNotFoundError:
+            with open(f"./resources/{filename}", "w+") as vote_file:
+                json.dump({}, vote_file)
+            votes = {}
+        voter = ctx.author.name
+        if user in votes:
+            votes_against = votes[user]
+            if voter in votes_against:
+                await ctx.author.send(f"You have already voted against {user}!")
+            else:
+                votes_against.append(voter)
+                votes[user] = votes_against
+                num_votes_left = self.bot.max_votes-len(votes_against)
+                await ctx.send(f"You have voted against {user}. "
+                               f"{num_votes_left} more votes until submission ban.")
+        else:
+            votes[user] = [voter]
+            num_votes_left = self.bot.max_votes-1
+            await ctx.send(f"You have voted against {user}. "
+                           f"{num_votes_left} more votes until submission ban.")
+        with open(f"./resources/{filename}", "w") as vote_file:
+            json.dump(votes, vote_file)
+
+    @commands.command()
+    async def votes(self, ctx, user):
+        """Displays the current number of votes against a user."""
+        filename = "votes.json"
+        with open(f"./resources/{filename}", "r+") as vote_file:
+            votes = json.load(vote_file)
+        if user in votes:
+            num_votes_left = self.bot.max_votes-len(votes[user])
+            await ctx.send(f"{user} has {num_votes_left} more votes until submission ban.")
+        else:
+            num_votes_left = self.bot.max_votes
+            await ctx.send(f"{user} has {num_votes_left} more votes until submission ban.")
+
+    @commands.command()
+    @commands.is_owner()
+    async def clearvotes(self, ctx, user):
+        """Clears votes against a player, effectively unbanning them."""
+        filename = "votes.json"
+        with open(f"./resources/{filename}", "r+") as vote_file:
+            votes = json.load(vote_file)
+        votes[user] = []
+        await ctx.send(f"Cleared votes for {user}.")
+        with open(f"./resources/{filename}", "w") as vote_file:
+            json.dump(votes, vote_file)
 
     @commands.command()
     @commands.is_owner()
@@ -149,6 +259,13 @@ class Memers():
         """Sets a new player victim. Bot owner only!"""
         self.bot.victim = player
         await ctx.send(f"New victim chosen: {self.bot.victim}")
+
+    @commands.command()
+    @commands.is_owner()
+    async def pct(self, ctx, pct):
+        """Sets the chance that the bot adds a random reaction."""
+        self.bot.pct = float(pct)/100.0
+        await ctx.send(f"New reaction percentage chosen: {self.bot.pct}")
 
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
@@ -166,16 +283,17 @@ class Memers():
             return
 
         reaction_pct = random.random()
-        if self.bot.victim == ctx.author.name and reaction_pct < 1:
+        if self.bot.victim == ctx.author.name and reaction_pct < self.bot.pct:
             add_emoji = random.sample(self.bot.emojis, 1)[0]
             await ctx.add_reaction(add_emoji)
 
         # if ctx.channel.id != config.main_channel:
-        if True:
-            with open(f"./cogs/memers/resources/responses.json", "r+") as response_file:
+        if not ctx.content.startswith("$"):
+            with open(f"./resources/responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
-                    for call, response in responses.items():
+                    for call, response_dict in responses.items():
+                        response = response_dict['response']
                         if call in ctx.content.lower():
                             await ctx.channel.send(f"{response}")
                 except KeyError:
