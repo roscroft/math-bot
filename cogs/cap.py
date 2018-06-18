@@ -56,7 +56,7 @@ class Cap():
 
     def __init__(self, bot):
         self.bot = bot
-        # self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
+        self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
         self.bot.build_tick_checker = self.bot.loop.create_task(self.get_build_tick())
 
     async def in_cap_channel(ctx):
