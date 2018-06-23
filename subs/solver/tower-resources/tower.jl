@@ -1,6 +1,6 @@
 using Combinatorics
 using CDDLib, Polyhedra
-using JuMP, Gurobi
+using JuMP, Cbc
 
 function coefficients(n_max)
 
@@ -41,7 +41,7 @@ function coefficients(n_max)
         if print_dict
             println(vision_nums)
             for key in sort(collect(keys(vision_nums)))
-                println("$key => $(vision_nums[key])")
+                #= println("$key => $(vision_nums[key])") =#
             end
         end
         return vision_nums
@@ -82,21 +82,20 @@ function solve_tower(n_max, top, right, bottom, left)
     # binary variables responsible for enforcing the uniqueness properties of the solution values,
     # as well as the generated constraints that enforce the appropriate vision numbers for each
     # row and column.
-    println("N: ",n_max)
-    println("Top: ",top)
-    println("Right: ",right)
-    println("Bottom: ",bottom)
-    println("Left: ",left)
+    #= println("N: ",n_max) =#
+    #= println("Top: ",top) =#
+    #= println("Right: ",right) =#
+    #= println("Bottom: ",bottom) =#
+    #= println("Left: ",left) =#
     const ineqs = coefficients(n_max)
-
-    model = Model(solver=GurobiSolver())
+    model = Model(solver=CbcSolver())
     @variable(model, 1 <= x[1:n_max, 1:n_max] <= n_max, Int)
     @variable(model, b[1:n_max, 1:n_max, 1:n_max], Bin)
     @constraint(model, [i=1:n_max, j=1:n_max], x[i,j] == sum(k*b[i,j,k] for k = 1:n_max))
     @constraint(model, [i=1:n_max, k=1:n_max], sum(b[i,j,k] for j=1:n_max) == 1)
     @constraint(model, [j=1:n_max, k=1:n_max], sum(b[i,j,k] for i=1:n_max) == 1)
-    print(model)
-    println("Model created.")
+    #= print(model) =#
+    #= println("Model created.") =#
     #= println(model) =#
     for idx in 1:n_max
         top_set = ineqs[top[idx]]
@@ -109,15 +108,15 @@ function solve_tower(n_max, top, right, bottom, left)
         @constraint(model, left_set["A"]*x[idx,:] .<= left_set["b"])
         @constraint(model, right_set["A"]*x[idx,end:-1:1] .<= right_set["b"])
     end
-    print(model)
-    println("All constraints added.")
+    #= print(model) =#
+    #= println("All constraints added.") =#
     solve(model)
-    println("Model solved!")
+    #= println("Model solved!") =#
     soln = convert.(Int64, getvalue(x))
     output = ""
     for idx = 1:n_max
         output = string(output, "\n",soln[idx,:])
     end
-    println(output)
+    #= println(output) =#
     return output
 end
