@@ -9,7 +9,7 @@ class Solver():
     def __init__(self, bot):
         self.bot = bot
         julia_caller = julia.Julia()
-        self.solve_tower = julia_caller.include("./subs/solver/resources/tower.jl")
+        self.solve_tower = julia_caller.include("./subs/solver/tower-resources/tower.jl")
 
     @commands.command()
     async def solve(self, ctx, top, right, bottom, left):

@@ -16,7 +16,8 @@ def extensions_generator():
 def submodules_generator():
     """Returns a generator for all submodule add-ons."""
     sub_path = "./subs"
-    do_not_use = ["solver"]
+    # do_not_use = ["solver"]
+    do_not_use = []
     for item in os.listdir(sub_path):
         path = os.path.join(sub_path, item)
         if item not in do_not_use:
