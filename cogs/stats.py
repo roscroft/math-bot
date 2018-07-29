@@ -9,50 +9,21 @@ from sqlalchemy import desc
 from config import cap_channel
 from config import player_url
 from config import clan_url
-from alog_check import MyHTMLParser, XP_SESSION, XP
-
-async def check_xp(username):
-    """Creates a record with the current datetime for user's levels and xp."""
-    url = f"{player_url}{username}&activities=20"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as alog_resp:
-            data_json = await alog_resp.json()
-    try:
-        name = data_json['name']
-        skillvalues = data_json['skillvalues']
-    except KeyError:
-        print(f"{username}'s profile is private.")
-        return None
-    with open(f"./resources/skills.json", "r+") as skills_file:
-        skill_names = json.load(skills_file)
-
-    xp_dict = {}
-    xp_dict["name"] = name
-    xp_dict["date"] = datetime.datetime.now()
-    for skill in skillvalues:
-        level = skill["level"]
-        xp = skill["xp"]
-        skill_name = skill_names[f"{skill['id']}"]
-
-        xp_dict[f"{skill_name}_level"] = level
-        xp_dict[f"{skill_name}_xp"] = xp
-
-    xp_record = XP(**xp_dict)
-    return xp_record
-
-async def fetch(session, url):
-    """Fetches a web request asynchronously."""
-    async with async_timeout.timeout(10):
-        async with session.get(url) as response:
-            return await response.text()
+from alog_check import MyHTMLParser, SESSION, XP
 
 class Stats():
     """Defines the cap command and functions."""
 
     def __init__(self, bot):
         self.bot = bot
+        self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
-    @commands.command(name="skill")
+    @commands.group(invoke_without_command=True)
+    async def skill(self, *args)
+
+
+
+
     async def skill(self, ctx, username, skill):
         """Returns xp in the requested skill."""
         with open(f"./resources/skills_alias.json", "r+") as skills_file:
@@ -63,7 +34,7 @@ class Stats():
         if skill_name is None:
             out_msg = "Not a valid skill name. Try '$skilllist' for a list of skills."
         else:
-            last_update = XP_SESSION.query(XP).filter(
+            last_update = SESSION.query(XP).filter(
                 XP.name == username).order_by(desc(XP.date)).first()
             if last_update is None:
                 out_msg = "User not in database."
@@ -107,9 +78,46 @@ class Stats():
                 xp_record = check_xp(user)
                 if xp_record is not None:
                     add_list.append(xp_record)
-            XP_SESSION.add_all(add_list)
-            XP_SESSION.commit()
+            SESSION.add_all(add_list)
+            SESSION.commit()
+
+            await asyncio.sleep(86400)
 
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Stats(bot))
+
+async def check_xp(username):
+    """Creates a record with the current datetime for user's levels and xp."""
+    url = f"{player_url}{username}&activities=20"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as alog_resp:
+            data_json = await alog_resp.json()
+    try:
+        name = data_json['name']
+        skillvalues = data_json['skillvalues']
+    except KeyError:
+        print(f"{username}'s profile is private.")
+        return None
+    with open(f"./resources/skills.json", "r+") as skills_file:
+        skill_names = json.load(skills_file)
+
+    xp_dict = {}
+    xp_dict["name"] = name
+    xp_dict["date"] = datetime.datetime.now()
+    for skill in skillvalues:
+        level = skill["level"]
+        xp = skill["xp"]
+        skill_name = skill_names[f"{skill['id']}"]
+
+        xp_dict[f"{skill_name}_level"] = level
+        xp_dict[f"{skill_name}_xp"] = xp
+
+    xp_record = XP(**xp_dict)
+    return xp_record
+
+async def fetch(session, url):
+    """Fetches a web request asynchronously."""
+    async with async_timeout.timeout(10):
+        async with session.get(url) as response:
+            return await response.text()

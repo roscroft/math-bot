@@ -8,32 +8,7 @@ from discord.ext import commands
 from config import cap_channel
 from config import player_url
 from config import clan_url
-from alog_check import INFO_SESSION, Account, MyHTMLParser
-
-async def check_alog(username, search_string):
-    """Returns date if search string is in user history, or if it has previously been recorded."""
-    url = f"{player_url}{username}&activities=20"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as alog_resp:
-            data_json = await alog_resp.json()
-    try:
-        activities = data_json['activities']
-    except KeyError:
-        print(f"{username}'s profile is private.")
-        return None
-    for activity in activities:
-        if search_string in activity['details']:
-            cap_date = activity['date']
-            print(f"{search_string} found: {username}, {cap_date}")
-            db_date = datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
-            return db_date
-    return None
-
-async def fetch(session, url):
-    """Fetches a web request asynchronously."""
-    async with async_timeout.timeout(10):
-        async with session.get(url) as response:
-            return await response.text()
+from alog_check import SESSION, Account, MyHTMLParser, upsert
 
 class Cap():
     """Defines the cap command and functions."""
@@ -54,23 +29,9 @@ class Cap():
 
     @commands.group(invoke_without_command=True)
     async def cap(self, ctx):
-        """Try '$cap help' for detailed cap command information."""
+        """Defines the cap command group."""
         if ctx.invoked_subcommand is None:
             await ctx.send("Try '$cap help'.")
-
-    @cap.command(name="help")
-    async def cap_help(self, ctx):
-        """Provides a help message for bot usage."""
-        out_msg = ("```Cap Cog\n"
-                   "These commands will only work in the cap channel.\n"
-                   "  $cap list                     - Generates a list of members who have cap"
-                   " messages in the channel.\n"
-                   "  $cap force <arg>              - Forces the bot to update. Valid arguments are"
-                   " all, or any player name.\n"
-                   "  $cap del <arg>                - Deletes bot messages. Arguments: all, noncap,"
-                   " or a specific message id (deletes all messages before given id).\n"
-                   "  $cap help                     - Returns this message.```")
-        await ctx.send(out_msg)
 
     @cap.command()
     @commands.check(in_cap_channel)
@@ -95,7 +56,7 @@ class Cap():
         """Forces a single user to update."""
         out_msg = ""
         if force_user == "all":
-            capped_users = INFO_SESSION.query(Account.name, Account.last_cap_time).all()
+            capped_users = SESSION.query(Account.rsn, Account.last_cap_time).all()
             for (user, cap_date) in capped_users:
                 cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                 datetime_list = cap_date.split(" ")
@@ -104,8 +65,8 @@ class Cap():
                 out_msg += (f"{user} has capped at the citadel on {date_report} "
                             f"at {time_report}.\n")
         else:
-            cap_date = INFO_SESSION.query(
-                Account.last_cap_time).filter(Account.name == force_user).first()
+            cap_date = SESSION.query(
+                Account.last_cap_time).filter(Account.rsn == force_user).first()
             if cap_date is not None:
                 cap_date = cap_date[0]
                 cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
@@ -114,6 +75,8 @@ class Cap():
                 time_report = datetime_list[1]
                 out_msg = (f"{force_user} has capped at the citadel on {date_report} "
                            f"at {time_report}.")
+            else:
+                out_msg = f"{force_user} not in database."
         await ctx.send(out_msg)
 
     @cap.command(name="del")
@@ -154,6 +117,7 @@ class Cap():
                 req_html = await fetch(session, clan_url)
             clan_parser.feed(req_html)
             clan_list = clan_parser.data
+            add_list = []
             cap_list = []
             print(f"Last build tick: {self.bot.last_build_tick}")
             for user in clan_list:
@@ -166,6 +130,8 @@ class Cap():
                         print("Not reporting cap: before build tick.")
                     else:
                         cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
+                        add_list.append(update_db(cap_date, user))
+
                         datetime_list = cap_date.split(" ")
                         cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
                                 f" at {datetime_list[1]}.")
@@ -181,6 +147,10 @@ class Cap():
 
             for user, cap_str in cap_list:
                 await self.bot.cap_ch.send(cap_str)
+
+            add_list = [item for item in add_list if item is not None]
+            SESSION.add_all(add_list)
+            SESSION.commit()
 
             await asyncio.sleep(600)
 
@@ -206,3 +176,34 @@ class Cap():
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Cap(bot))
+
+async def check_alog(username, search_string):
+    """Returns date if search string is in user history, or if it has previously been recorded."""
+    url = f"{player_url}{username}&activities=20"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as alog_resp:
+            data_json = await alog_resp.json()
+    try:
+        activities = data_json['activities']
+    except KeyError:
+        print(f"{username}'s profile is private.")
+        return None
+    for activity in activities:
+        if search_string in activity['details']:
+            cap_date = activity['date']
+            print(f"{search_string} found: {username}, {cap_date}")
+            db_date = datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
+            return db_date
+    return None
+
+async def fetch(session, url):
+    """Fetches a web request asynchronously."""
+    async with async_timeout.timeout(10):
+        async with session.get(url) as response:
+            return await response.text()
+
+def update_db(self, cap_date, user):
+    primary_key_map = {"rsn": user}
+    account_dict = {"rsn": user, "last_cap_time": cap_date}
+    account_record = Account(**account_dict)
+    return upsert(SESSION, Account, primary_key_map, account_record)
