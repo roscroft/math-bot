@@ -306,9 +306,9 @@ class Memers():
             if ctx.content.lower() in ["i'm dad", "im dad"]:
                 await ctx.channel.send(f"No you're not, you're {ctx.author.mention}.")
 
-            elif "i'm " in ctx.content.lower():
-                imindex = ctx.content.lower().index("i'm") + 4
-                await ctx.channel.send(f"Hi {ctx.content[imindex:]}, I'm Dad!")
+            # elif "i'm " in ctx.content.lower():
+            #     imindex = ctx.content.lower().index("i'm") + 4
+            #     await ctx.channel.send(f"Hi {ctx.content[imindex:]}, I'm Dad!")
 
         if ctx.content.lower() == "out":
             await ctx.channel.send(f":point_right: :door: :rage:")

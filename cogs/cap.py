@@ -1,7 +1,6 @@
 """Defines the functions used for handling citadel caps."""
 from datetime import datetime
 from datetime import timedelta
-from html.parser import HTMLParser
 import asyncio
 import aiohttp
 import async_timeout
@@ -9,7 +8,7 @@ from discord.ext import commands
 from config import cap_channel
 from config import player_url
 from config import clan_url
-from alog_check import SESSION, Account
+from alog_check import INFO_SESSION, Account, MyHTMLParser
 
 async def check_alog(username, search_string):
     """Returns date if search string is in user history, or if it has previously been recorded."""
@@ -29,21 +28,6 @@ async def check_alog(username, search_string):
             db_date = datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
             return db_date
     return None
-
-class MyHTMLParser(HTMLParser):
-    """Builds an HTML parser."""
-    def handle_data(self, data):
-        if data.startswith("\nvar data;"):
-            list_start = data.find("[")
-            list_end = data.find("]")
-            clan_members = data[list_start+1:list_end]
-            clan_members = clan_members.split(", ")
-            clan_list = []
-            for item in clan_members:
-                add_item = item[1:-1]
-                add_item = add_item.replace(u'\xa0', u' ')
-                clan_list.append(add_item)
-            self.data = clan_list
 
 async def fetch(session, url):
     """Fetches a web request asynchronously."""
@@ -111,7 +95,7 @@ class Cap():
         """Forces a single user to update."""
         out_msg = ""
         if force_user == "all":
-            capped_users = SESSION.query(Account.name, Account.last_cap_time).all()
+            capped_users = INFO_SESSION.query(Account.name, Account.last_cap_time).all()
             for (user, cap_date) in capped_users:
                 cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                 datetime_list = cap_date.split(" ")
@@ -120,7 +104,7 @@ class Cap():
                 out_msg += (f"{user} has capped at the citadel on {date_report} "
                             f"at {time_report}.\n")
         else:
-            cap_date = SESSION.query(
+            cap_date = INFO_SESSION.query(
                 Account.last_cap_time).filter(Account.name == force_user).first()
             if cap_date is not None:
                 cap_date = cap_date[0]
@@ -178,20 +162,20 @@ class Cap():
                 # there's no message already in the channel.
                 if cap_date is not None:
                     print(f"Cap date for {user}: {cap_date}")
-                if cap_date is not None and cap_date < self.bot.last_build_tick:
-                    print("Not reporting cap: before build tick.")
-                if cap_date is not None and cap_date > self.bot.last_build_tick:
-                    cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
-                    datetime_list = cap_date.split(" ")
-                    cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
-                               f" at {datetime_list[1]}.")
-                    cap_msg_list = await self.bot.cap_ch.history().filter(
-                        lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
-                            lambda m, c_s=cap_str: c_s in m).flatten()
-                    if cap_msg_list:
-                        print("Not report cap: cap message exists.")
-                    if not cap_msg_list:
-                        cap_list.append((user, cap_str))
+                    if cap_date < self.bot.last_build_tick:
+                        print("Not reporting cap: before build tick.")
+                    else:
+                        cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
+                        datetime_list = cap_date.split(" ")
+                        cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
+                                f" at {datetime_list[1]}.")
+                        cap_msg_list = await self.bot.cap_ch.history().filter(
+                            lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
+                                lambda m, c_s=cap_str: c_s in m).flatten()
+                        if cap_msg_list:
+                            print("Not report cap: cap message exists.")
+                        if not cap_msg_list:
+                            cap_list.append((user, cap_str))
 
             print(cap_list)
 

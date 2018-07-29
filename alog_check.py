@@ -15,37 +15,107 @@ from config import player_url
 from config import clan_url
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
-ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
-MASTER_SESSION = sessionmaker(bind=ENGINE)
-BASE = declarative_base()
+ENGINE_INFO = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_info.db")
+ENGINE_XP = create_engine(f"sqlite:///{ABSPATH}/dbs/clan_xp.db")
+MASTER_INFO_SESSION = sessionmaker(bind=ENGINE_INFO)
+MASTER_XP_SESSION = sessionmaker(bind=ENGINE_XP)
+BASE_INFO = declarative_base()
+BASE_XP = declarative_base()
 REQUEST_SESSION = requests.session()
-SESSION = MASTER_SESSION()
+INFO_SESSION = MASTER_INFO_SESSION()
+XP_SESSION = MASTER_XP_SESSION()
 
-class Account(BASE):
+class Account(BASE_INFO):
     """Defines the class to handle account names and historical caps"""
     __tablename__ = 'account'
     name = Column(String(50), primary_key=True)
     last_cap_time = Column(DateTime)
     total_caps = Column(Integer)
 
-class CheckInfo(BASE):
+class CheckInfo(BASE_INFO):
     """Stores if a user satisfies a check or not"""
     __tablename__ = 'checkInfo'
     name = Column(String(50), primary_key=True)
     search_string = Column(String(50))
     satisfies = Column(Boolean)
 
-def init_db():
-    """Initializes and optionally clears out the database"""
-    BASE.metadata.bind = ENGINE
-    BASE.metadata.create_all(ENGINE)
+class XP(BASE_XP):
+    """Stores users, dates, and skill levels/xp"""
+    __tablename__ = 'xp'
+    xp_id = Column(Integer, primary_key=True)
+    name = Column(String(50))
+    date = Column(DateTime)
+    attack_level = Column(Integer)
+    attack_xp = Column(Integer)
+    defence_level = Column(Integer)
+    defence_xp = Column(Integer)
+    strength_level = Column(Integer)
+    strength_xp = Column(Integer)
+    constitution_level = Column(Integer)
+    constitution_xp = Column(Integer)
+    ranged_level = Column(Integer)
+    ranged_xp = Column(Integer)
+    prayer_level = Column(Integer)
+    prayer_xp = Column(Integer)
+    magic_level = Column(Integer)
+    magic_xp = Column(Integer)
+    cooking_level = Column(Integer)
+    cooking_xp = Column(Integer)
+    woodcutting_level = Column(Integer)
+    woodcutting_xp = Column(Integer)
+    fletching_level = Column(Integer)
+    fletching_xp = Column(Integer)
+    fishing_level = Column(Integer)
+    fishing_xp = Column(Integer)
+    firemaking_level = Column(Integer)
+    firemaking_xp = Column(Integer)
+    crafting_level = Column(Integer)
+    crafting_xp = Column(Integer)
+    smithing_level = Column(Integer)
+    smithing_xp = Column(Integer)
+    mining_level = Column(Integer)
+    mining_xp = Column(Integer)
+    herblore_level = Column(Integer)
+    herblore_xp = Column(Integer)
+    agility_level = Column(Integer)
+    agility_xp = Column(Integer)
+    theiving_level = Column(Integer)
+    theiving_xp = Column(Integer)
+    slayer_level = Column(Integer)
+    slayer_xp = Column(Integer)
+    farming_level = Column(Integer)
+    farming_xp = Column(Integer)
+    runecrafting_level = Column(Integer)
+    runecrafting_xp = Column(Integer)
+    hunter_level = Column(Integer)
+    hunter_xp = Column(Integer)
+    construction_level = Column(Integer)
+    construction_xp = Column(Integer)
+    summoning_level = Column(Integer)
+    summoning_xp = Column(Integer)
+    dungeoneering_level = Column(Integer)
+    dungeoneering_xp = Column(Integer)
+    divination_level = Column(Integer)
+    divination_xp = Column(Integer)
+    invention_level = Column(Integer)
+    invention_xp = Column(Integer)
 
-def upsert(table, primary_key_map, obj):
+def init_db_info():
+    """Initializes and optionally clears out the clan info database"""
+    BASE_INFO.metadata.bind = ENGINE_INFO
+    BASE_INFO.metadata.create_all(ENGINE_INFO)
+
+def init_db_xp():
+    """Initializes and optionally clears out the clan xp database"""
+    BASE_XP.metadata.bind = ENGINE_XP
+    BASE_XP.metadata.create_all(ENGINE_XP)
+
+def upsert(session, table, primary_key_map, obj):
     """Decides whether to insert or update an object."""
-    first = SESSION.query(table).filter_by(**primary_key_map).first()
+    first = session.query(table).filter_by(**primary_key_map).first()
     if first != None:
         keys = table.__table__.columns.keys()
-        SESSION.query(table).filter_by(**primary_key_map).update(
+        session.query(table).filter_by(**primary_key_map).update(
             {column: getattr(obj, column) for column in keys})
         return None
     return obj
@@ -69,8 +139,10 @@ def main():
     """Runs the stuff."""
     parser = argparse.ArgumentParser(description="Choose script actions.")
     parser.add_argument("-c", "--check", help="Runs cap check.", action="store_true")
+    parser.add_argument("-x", "--xp", help="Updates XP database.", action="store_true")
     parser.add_argument("-u", "--user", help="Runs user check.", action="store_true")
-    parser.add_argument("-i", "--init", help="Reinitializes the databases.", action="store_true")
+    parser.add_argument("-i", "--initinfo", help="Reinitializes the info databases.", action="store_true")
+    parser.add_argument("-j", "--initxp", help="Reinitializes the xp databases.", action="store_true")
     args = parser.parse_args()
     if args.check:
         capped_users = []
@@ -82,16 +154,25 @@ def main():
         print(len(clan_list))
         capped_users = add_cap_to_db(clan_list)
         write_to_file(capped_users, 0)
+    elif args.xp:
+        clan_parser = MyHTMLParser()
+        req_data = requests.get(clan_url)
+        req_html = req_data.text
+        clan_parser.feed(req_html)
+        clan_list = clan_parser.data
+        add_xp_to_db(clan_list)
     elif args.user:
-        with open(f"./checks/checkfile.csv", "r+") as check_file:
+        with open(f"{ABSPATH}/checks/checkfile.csv", "r+") as check_file:
             reader = csv.DictReader(check_file)
             try:
                 for check in reader:
                     add_check_to_db(check['name'], check['string'])
             except KeyError:
                 print("No checks in file.")
-    elif args.init:
-        init_db()
+    elif args.initinfo:
+        init_db_info()
+    elif args.initxp:
+        init_db_xp()
 
 def check_alog(username, search_string):
     """Returns date if search string is in user history, or if it has previously been recorded."""
@@ -109,6 +190,44 @@ def check_alog(username, search_string):
             return activity['date']
     return None
 
+def check_xp(username):
+    """Creates a record with the current datetime for user's levels and xp."""
+    data = REQUEST_SESSION.get(f"{player_url}{username}&activities=20").content
+    data_json = json.loads(data)
+    try:
+        name = data_json['name']
+        skillvalues = data_json['skillvalues']
+    except KeyError:
+        print(f"{username}'s profile is private.")
+        return None
+    with open(f"{ABSPATH}/resources/skills.json", "r+") as skills_file:
+        skill_names = json.load(skills_file)
+
+    xp_dict = {}
+    xp_dict["name"] = name
+    xp_dict["date"] = datetime.datetime.now()
+    for skill in skillvalues:
+        level = skill["level"]
+        xp = skill["xp"]
+        skill_id = skill["id"]
+        skill_name = skill_names[f"{skill_id}"]
+
+        xp_dict[f"{skill_name}_level"] = level
+        xp_dict[f"{skill_name}_xp"] = xp
+
+    xp_record = XP(**xp_dict)
+    return xp_record
+
+def add_xp_to_db(clan_list):
+    """Adds all xp records to databse."""
+    add_list = []
+    for user in clan_list:
+        xp_record = check_xp(user)
+        if xp_record is not None:
+            add_list.append(xp_record)
+    XP_SESSION.add_all(add_list)
+    XP_SESSION.commit()
+
 def add_cap_to_db(clan_list):
     """Displays cap info for a list of users."""
     add_list = []
@@ -121,7 +240,7 @@ def add_cap_to_db(clan_list):
             # If the cap date is not None, that means the user has a cap in their adventurer's log.
             # We need to do a few things. First, check to see if the cap date is already stored in
             # the database under last_cap_reported
-            previous_report = SESSION.query(
+            previous_report = INFO_SESSION.query(
                 Account.last_cap_time).filter(Account.name == user).first()
             # Two outcomes: previous report is None, or it has a value. If it is none, then we
             # update it to be cap_date, and store the current time as last_cap_actual.
@@ -131,7 +250,7 @@ def add_cap_to_db(clan_list):
             if previous_report is None or previous_report[0] < db_date:
                 # Check to see if the time is in the database. If so, probably indicates a name
                 # change. If the time is already in, then we do not need to report it.
-                same_time = SESSION.query(
+                same_time = INFO_SESSION.query(
                     Account.name, Account.last_cap_time).filter(
                         Account.last_cap_time == db_date).first()
                 if same_time is not None:
@@ -140,7 +259,7 @@ def add_cap_to_db(clan_list):
                     primary_key_map = {"name": user}
                     account_dict = {"name": user, "last_cap_time": db_date}
                     account_record = Account(**account_dict)
-                    add_list.append(upsert(Account, primary_key_map, account_record))
+                    add_list.append(upsert(INFO_SESSION, Account, primary_key_map, account_record))
                     print(f"{user} last capped at the citadel on {cap_date}.")
                     capped_users.append((user, cap_date))
                     # print(capped_users)
@@ -149,8 +268,8 @@ def add_cap_to_db(clan_list):
             # print(f"{user} has not capped at the citadel.")
 
     add_list = [item for item in add_list if item is not None]
-    SESSION.add_all(add_list)
-    SESSION.commit()
+    INFO_SESSION.add_all(add_list)
+    INFO_SESSION.commit()
     print("Done.")
     return capped_users
 
@@ -159,15 +278,15 @@ def add_check_to_db(username, search_string):
     add_list = []
     check_res = check_alog(username, search_string)
     if check_res is not None:
-        check_report = SESSION.query(CheckInfo.satisfies).filter(CheckInfo.name == username).first()
+        check_report = INFO_SESSION.query(CheckInfo.satisfies).filter(CheckInfo.name == username).first()
         if check_report is None or check_report[0] is False:
             primary_key_map = {"name": username}
             account_dict = {"name": username, "satisfies": check_res}
             account_record = CheckInfo(**account_dict)
-            add_list.append(upsert(CheckInfo, primary_key_map, account_record))
+            add_list.append(upsert(INFO_SESSION, CheckInfo, primary_key_map, account_record))
     add_list = [item for item in add_list if item is not None]
-    SESSION.add_all(add_list)
-    SESSION.commit()
+    INFO_SESSION.add_all(add_list)
+    INFO_SESSION.commit()
 
 def write_to_file(users, type_code):
     """Writes new caps to a file, which is read when the bot runs."""

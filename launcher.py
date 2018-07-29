@@ -8,8 +8,8 @@ def setup_logging():
     """Sets up the bot logging."""
     try:
         # __enter__
-        logging.getLogger('discord').setLevel(logging.INFO)
-        logging.getLogger('discord.http').setLevel(logging.WARNING)
+        logging.getLogger('discord').setLevel(logging.WARN)
+        logging.getLogger('discord.http').setLevel(logging.WARN)
 
         log = logging.getLogger()
         log.setLevel(logging.INFO)
