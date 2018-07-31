@@ -7,6 +7,8 @@ import discord
 from discord.ext import commands
 import config
 
+MODS_FILE = './resources/mods.txt'
+
 MAX_VOTES = 10
 
 def check_votes(user):
@@ -87,6 +89,11 @@ def list_user_adds(filename, user, is_img):
     out_msg = f"```{out_msg}```"
     return out_msg
 
+def get_mod_ids():
+    with open(MODS_FILE, 'r') as txt_file:
+        mod_ids = txt_file.read().splitlines()
+    return mod_ids
+
 class Memers():
     """Defines the cap command and functions."""
 
@@ -126,16 +133,16 @@ class Memers():
         await ctx.send(out_msg)
 
     @commands.command(name="rm", hidden=True)
-    @commands.is_owner()
     async def remove(self, ctx, call):
-        """Removes a call/response pair. Bot owner only!"""
-        filename = "responses.json"
-        (user, response) = remove_from_json(filename, call)
-        if response is not None:
-            out_msg = f"Removed {user}'s text call/response pair '{call}' -> '{response}'!"
-        else:
-            out_msg = f"Text call '{call}' not found."
-        await ctx.author.send(out_msg)
+        """Removes a call/response pair. Bot mods only!"""
+        if str(ctx.author.id) in get_mod_ids():
+            filename = "responses.json"
+            (user, response) = remove_from_json(filename, call)
+            if response is not None:
+                out_msg = f"Removed {user}'s text call/response pair '{call}' -> '{response}'!"
+            else:
+                out_msg = f"Text call '{call}' not found."
+            await ctx.author.send(out_msg)
 
     @commands.command()
     async def calls(self, ctx):
@@ -176,16 +183,16 @@ class Memers():
         await ctx.send(out_msg)
 
     @img.command(name="rm")
-    @commands.is_owner()
     async def _remove(self, ctx, call):
-        """Removes an image response. Bot owner only!"""
-        filename = "image_responses.json"
-        image_url = remove_from_json(filename, call)
-        if image_url is not None:
-            out_msg = f"Removed image call/response pair {call} -> <{image_url}>!"
-        else:
-            out_msg = f"Image call {call} not found."
-        await ctx.author.send(out_msg)
+        """Removes an image response. Bot mods only!"""
+        if str(ctx.author.id) in get_mod_ids():
+            filename = "image_responses.json"
+            image_url = remove_from_json(filename, call)
+            if image_url is not None:
+                out_msg = f"Removed image call/response pair {call} -> <{image_url}>!"
+            else:
+                out_msg = f"Image call {call} not found."
+            await ctx.author.send(out_msg)
 
     @img.command(name="calls")
     async def _calls(self, ctx):
@@ -270,6 +277,46 @@ class Memers():
         self.bot.pct = float(pct)/100.0
         await ctx.send(f"New reaction percentage chosen: {self.bot.pct}")
 
+    @commands.command(aliases=['mod'])
+    @commands.is_owner()
+    async def mods(self, ctx, *args):
+        """Adds/Removes/Shows mod privileges to/from/of a user. Bot owner only!"""
+        if len(args) == 0:
+            out = '**Current Mods**:\n'
+            for userid in get_mod_ids():
+                try:
+                    mod_member = ctx.guild.get_member(int(userid))
+                    out += f'{mod_member.name}\n'
+                except ValueError:
+                    out += 'Unknown User\n'
+        elif len(args) == 2:
+            command, name = args
+            count = 0
+            for member in ctx.guild.members:
+                if name.lower() == member.name.lower():
+                    targetid = member.id
+                    count += 1
+            if count == 0:
+                out = f'Error: name {name} not found in server.'
+            elif count > 1:
+                out = f'Error: string {name} refers to more than one person.'
+            elif command == 'add':
+                with open(MODS_FILE, 'a+') as txt_file:
+                    txt_file.write(f'{targetid}\n')
+                out = f'{name.title()} added as mod!'
+            elif command == 'remove':
+                mod_ids = [userid for userid in get_mod_ids() if userid != str(targetid)]
+                with open(MODS_FILE, 'w+') as txt_file:
+                    txt_file.write('\n'.join(mod_ids) + '\n')
+                out = f'{name.title()} removed as mod!'
+            else:
+                out = f'Error: invalid syntax. Command must be in the form `$mods [add/remove] [username]` or '\
+                      f'`$mods`.'
+        else:
+            out = f'Error: invalid syntax. Command must be in the form `$mods [add/remove] [username]` or ' \
+                  f'`$mods`.'
+        await ctx.send(out)
+
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
         await self.bot.wait_until_ready()
@@ -291,7 +338,7 @@ class Memers():
             await ctx.add_reaction(add_emoji)
 
         # if ctx.channel.id != config.main_channel:
-        if not ctx.content.startswith("$"):
+        if not ctx.content.startswith("~"):
             with open(f"./resources/responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
@@ -306,9 +353,9 @@ class Memers():
             if ctx.content.lower() in ["i'm dad", "im dad"]:
                 await ctx.channel.send(f"No you're not, you're {ctx.author.mention}.")
 
-            elif "i'm " in ctx.content.lower():
-                imindex = ctx.content.lower().index("i'm") + 4
-                await ctx.channel.send(f"Hi {ctx.content[imindex:]}, I'm Dad!")
+            # elif "i'm " in ctx.content.lower():
+            #     imindex = ctx.content.lower().index("i'm") + 4
+            #     await ctx.channel.send(f"Hi {ctx.content[imindex:]}, I'm Dad!")
 
         if ctx.content.lower() == "out":
             await ctx.channel.send(f":point_right: :door: :rage:")
