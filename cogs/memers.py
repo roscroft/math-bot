@@ -338,7 +338,7 @@ class Memers():
             await ctx.add_reaction(add_emoji)
 
         # if ctx.channel.id != config.main_channel:
-        if not ctx.content.startswith("~"):
+        if not ctx.content.startswith("$"):
             with open(f"./resources/responses.json", "r+") as response_file:
                 responses = json.load(response_file)
                 try:
