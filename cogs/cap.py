@@ -1,6 +1,8 @@
 """Defines the functions used for handling citadel caps."""
 from datetime import datetime
 from datetime import timedelta
+import random
+import logging
 import asyncio
 import aiohttp
 import async_timeout
@@ -19,12 +21,12 @@ async def check_alog(username, search_string):
     try:
         activities = data_json['activities']
     except KeyError:
-        print(f"{username}'s profile is private.")
+        logging.info(f"{username}'s profile is private.")
         return None
     for activity in activities:
         if search_string in activity['details']:
             cap_date = activity['date']
-            print(f"{search_string} found: {username}, {cap_date}")
+            logging.info(f"{search_string} found: {username}, {cap_date}")
             db_date = datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
             return db_date
     return None
@@ -144,6 +146,27 @@ class Cap():
         """Displays the last build tick."""
         await ctx.send(f"Last build tick: {self.bot.last_build_tick}")
 
+    @commands.command()
+    async def roll(self, ctx, *args):
+        """Rolls a random number."""
+        try:
+            if len(args) == 1:
+                minint = 1
+                maxint = int(args[0])
+            elif len(args) == 2:
+                minint = int(args[0])
+                maxint = int(args[1])
+            else:
+                await ctx.send('Error: invalid arguments. Syntax is `~roll [maxint]` or `~roll [minint] [maxint]`.')
+                return
+        except ValueError:
+            await ctx.send('Error: one or both arguments are not valid numbers.')
+            return
+        if minint >= maxint:
+            await ctx.send(f'Error: min greater than or equal to max ({minint} >= {maxint})')
+        else:
+            await ctx.send(f'Rolled {random.randint(minint, maxint)}!')
+
     async def report_caps(self):
         """Reports caps."""
         await self.bot.wait_until_ready()
@@ -155,29 +178,29 @@ class Cap():
             clan_parser.feed(req_html)
             clan_list = clan_parser.data
             cap_list = []
-            print(f"Last build tick: {self.bot.last_build_tick}")
+            logging.info(f"Last build tick: {self.bot.last_build_tick}")
             for user in clan_list:
                 cap_date = await check_alog(user, "capped")
                 # Add the cap only if it exists, it's been since the last build tick, and
                 # there's no message already in the channel.
                 if cap_date is not None:
-                    print(f"Cap date for {user}: {cap_date}")
+                    logging.info(f"Cap date for {user}: {cap_date}")
                     if cap_date < self.bot.last_build_tick:
-                        print("Not reporting cap: before build tick.")
+                        logging.info("Not reporting cap: before build tick.")
                     else:
                         cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                         datetime_list = cap_date.split(" ")
                         cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
-                                f" at {datetime_list[1]}.")
+                                   f" at {datetime_list[1]}.")
                         cap_msg_list = await self.bot.cap_ch.history().filter(
                             lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
                                 lambda m, c_s=cap_str: c_s in m).flatten()
                         if cap_msg_list:
-                            print("Not report cap: cap message exists.")
+                            logging.info("Not report cap: cap message exists.")
                         if not cap_msg_list:
                             cap_list.append((user, cap_str))
 
-            print(cap_list)
+            logging.info(cap_list)
 
             for user, cap_str in cap_list:
                 await self.bot.cap_ch.send(cap_str)
@@ -192,14 +215,13 @@ class Cap():
             today_utc = datetime.utcnow()
             d_off = (today_utc.weekday() - 2) % 7
             h_off = (today_utc.hour - 16)
+            # h_off = today_utc.hour
             m_off = today_utc.minute
             s_off = today_utc.second
             ms_off = today_utc.microsecond
             tdel = timedelta(
                 days=d_off, hours=h_off, minutes=m_off, seconds=s_off, microseconds=ms_off)
             self.bot.last_build_tick = today_utc - tdel
-            print("Last build tick:")
-            print(self.bot.last_build_tick)
 
             await asyncio.sleep(3600)
 
