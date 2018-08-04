@@ -2,20 +2,15 @@
 """Runs the alog checks and updates the database/outfiles appropriately"""
 import os
 import argparse
-import datetime
-import csv
-import json
 from html.parser import HTMLParser
 import requests
-from sqlalchemy import Column, String, Boolean, Integer, DateTime
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from config import player_url
-from config import clan_url
 
 ABSPATH = os.path.dirname(os.path.abspath(__file__))
-ENGINE = create_engine(f"sqlite:///{ABSPATH}/dbs/clan.db")
+ENGINE = create_engine(f"sqlite:///{ABSPATH}/clan.db")
 MASTER_SESSION = sessionmaker(bind=ENGINE)
 BASE = declarative_base()
 REQUEST_SESSION = requests.session()
