@@ -1,14 +1,16 @@
 """Defines the functions used for handling citadel caps."""
 from datetime import datetime
 from datetime import timedelta
+import logging
 import asyncio
 import aiohttp
+import asyncpg
 import async_timeout
 from discord.ext import commands
 from config import cap_channel
 from config import player_url
 from config import clan_url
-from alog_check import SESSION, Account, MyHTMLParser, upsert
+from dbs import SESSION, Account, MyHTMLParser, upsert
 
 class Cap():
     """Defines the cap command and functions."""
@@ -119,31 +121,31 @@ class Cap():
             clan_list = clan_parser.data
             add_list = []
             cap_list = []
-            print(f"Last build tick: {self.bot.last_build_tick}")
+            logging.info(f"Last build tick: {self.bot.last_build_tick}")
             for user in clan_list:
                 cap_date = await check_alog(user, "capped")
                 # Add the cap only if it exists, it's been since the last build tick, and
                 # there's no message already in the channel.
                 if cap_date is not None:
-                    print(f"Cap date for {user}: {cap_date}")
+                    logging.info(f"Cap date for {user}: {cap_date}")
                     if cap_date < self.bot.last_build_tick:
-                        print("Not reporting cap: before build tick.")
+                        logging.info("Not reporting cap: before build tick.")
                     else:
                         cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                         add_list.append(update_db(cap_date, user))
 
                         datetime_list = cap_date.split(" ")
                         cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
-                                f" at {datetime_list[1]}.")
+                                   f" at {datetime_list[1]}.")
                         cap_msg_list = await self.bot.cap_ch.history().filter(
                             lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
                                 lambda m, c_s=cap_str: c_s in m).flatten()
                         if cap_msg_list:
-                            print("Not report cap: cap message exists.")
+                            logging.info("Not report cap: cap message exists.")
                         if not cap_msg_list:
                             cap_list.append((user, cap_str))
 
-            print(cap_list)
+            logging.info(cap_list)
 
             for user, cap_str in cap_list:
                 await self.bot.cap_ch.send(cap_str)
@@ -168,8 +170,8 @@ class Cap():
             tdel = timedelta(
                 days=d_off, hours=h_off, minutes=m_off, seconds=s_off, microseconds=ms_off)
             self.bot.last_build_tick = today_utc - tdel
-            print("Last build tick:")
-            print(self.bot.last_build_tick)
+            logging.info("Last build tick:")
+            logging.info(self.bot.last_build_tick)
 
             await asyncio.sleep(3600)
 
@@ -186,12 +188,12 @@ async def check_alog(username, search_string):
     try:
         activities = data_json['activities']
     except KeyError:
-        print(f"{username}'s profile is private.")
+        logging.info(f"{username}'s profile is private.")
         return None
     for activity in activities:
         if search_string in activity['details']:
             cap_date = activity['date']
-            print(f"{search_string} found: {username}, {cap_date}")
+            # logging.info(f"{search_string} found: {username}, {cap_date}")
             db_date = datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
             return db_date
     return None
@@ -202,8 +204,11 @@ async def fetch(session, url):
         async with session.get(url) as response:
             return await response.text()
 
-def update_db(self, cap_date, user):
+def update_db(cap_date, user):
+    """Returns an insert record or None for the database."""
     primary_key_map = {"rsn": user}
     account_dict = {"rsn": user, "last_cap_time": cap_date}
     account_record = Account(**account_dict)
     return upsert(SESSION, Account, primary_key_map, account_record)
+
+

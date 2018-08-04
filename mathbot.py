@@ -2,8 +2,8 @@
 import os
 import sys
 import traceback
+from configparser import ConfigParser
 from discord.ext import commands
-import config
 
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""
@@ -12,10 +12,6 @@ def extensions_generator():
     for cog in os.listdir(cog_path):
         if cog not in do_not_use:
             yield f"cogs.{cog[:-3]}"
-    # use = ["stats.py"]
-    # for cog in os.listdir(cog_path):
-    #     if cog in use:
-    #         yield f"cogs.{cog[:-3]}"
 
 def submodules_generator():
     """Returns a generator for all submodule add-ons."""
@@ -27,13 +23,6 @@ def submodules_generator():
             for sub in os.listdir(path):
                 if sub == f"{item}.py" and sub not in do_not_use:
                     yield f"subs.{item}.{sub[:-3]}"
-    # use = []
-    # for item in os.listdir(sub_path):
-    #     path = os.path.join(sub_path, item)
-    #     if item in use:
-    #         for sub in os.listdir(path):
-    #             if sub == f"{item}.py" and sub in use:
-    #                 yield f"subs.{item}.{sub[:-3]}"
 
 DESCRIPTION = "A basic bot that runs a couple of uninteresting cogs."
 
@@ -46,6 +35,8 @@ class MathBot(commands.Bot):
         super().__init__(command_prefix=["$", "!"], description=DESCRIPTION)
         self.default_nick = "MathBot"
         self.add_command(self.load)
+        self.config = ConfigParser()
+        self.config.read("{ABSPATH}/bot.ini")
 
         for extension in extensions_generator():
             try:
@@ -78,7 +69,7 @@ class MathBot(commands.Bot):
 
     def run(self):
         """Runs the bot with the token from the config file."""
-        super().run(config.token, reconnect=True)
+        super().run(self.config['token'], reconnect=True)
 
     async def on_member_update(self, before, after):
         """Resets bot's nickname anytime it is changed."""

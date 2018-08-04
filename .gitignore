@@ -2,12 +2,11 @@ __pycache__/
 resources/
 subs/markov/resources/
 __init__.py
-config.py
-runalogcheck.sh
 *.csv
 *.txt
-!requirements.txt
+*.ini
 *.log
 *.db
+!requirements.txt
 testbot.py
 testlauncher.py
