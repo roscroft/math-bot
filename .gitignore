@@ -6,6 +6,7 @@ config.py
 runalogcheck.sh
 *.csv
 *.txt
+*.ini
 !requirements.txt
 *.log
 *.db
