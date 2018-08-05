@@ -1,3 +1,6 @@
 [submodule "subs/math-bot-markov"]
 	path = subs/math-bot-markov
 	url = https://github.com/coizioc/math-bot-markov
+[submodule "subs/solver"]
+	path = subs/solver
+	url = git@github.com:roscroft/solver.git
