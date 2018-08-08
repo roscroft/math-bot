@@ -214,8 +214,8 @@ class Cap():
         while not self.bot.is_closed():
             today_utc = datetime.utcnow()
             d_off = (today_utc.weekday() - 2) % 7
-            h_off = (today_utc.hour - 16)
-            # h_off = today_utc.hour
+            # h_off = (today_utc.hour - 16)
+            h_off = today_utc.hour
             m_off = today_utc.minute
             s_off = today_utc.second
             ms_off = today_utc.microsecond
