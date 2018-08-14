@@ -12,10 +12,6 @@ def extensions_generator():
     for cog in os.listdir(cog_path):
         if cog not in do_not_use:
             yield f"cogs.{cog[:-3]}"
-    # use = ["stats.py"]
-    # for cog in os.listdir(cog_path):
-    #     if cog in use:
-    #         yield f"cogs.{cog[:-3]}"
 
 def submodules_generator():
     """Returns a generator for all submodule add-ons."""
@@ -27,13 +23,6 @@ def submodules_generator():
             for sub in os.listdir(path):
                 if sub == f"{item}.py" and sub not in do_not_use:
                     yield f"subs.{item}.{sub[:-3]}"
-    # use = []
-    # for item in os.listdir(sub_path):
-    #     path = os.path.join(sub_path, item)
-    #     if item in use:
-    #         for sub in os.listdir(path):
-    #             if sub == f"{item}.py" and sub in use:
-    #                 yield f"subs.{item}.{sub[:-3]}"
 
 DESCRIPTION = "A basic bot that runs a couple of uninteresting cogs."
 

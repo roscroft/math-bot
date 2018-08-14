@@ -5,6 +5,7 @@ __init__.py
 config.py
 *.csv
 *.txt
+*.ini
 !requirements.txt
 *.log
 *.db
