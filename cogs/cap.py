@@ -99,6 +99,7 @@ class Cap():
             req_html = await fetch(session, clan_url)
         clan_parser.feed(req_html)
         clan_list = clan_parser.data
+        print(clan_list)
         await ctx.send(len(clan_list))
 
     @cap.command()
@@ -189,7 +190,10 @@ class Cap():
             clan_list = clan_parser.data
             cap_list = []
             logging.info(f"Last build tick: {self.bot.last_build_tick}")
+            counter = 0
             for user in clan_list:
+                counter += 1
+                logging.info(f"Clan member #{counter}.")
                 cap_date = await check_alog(user, "capped")
                 # Add the cap only if it exists, it's been since the last build tick, and
                 # there's no message already in the channel.
@@ -206,7 +210,7 @@ class Cap():
                             lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
                                 lambda m, c_s=cap_str: c_s in m).flatten()
                         if cap_msg_list:
-                            logging.info("Not report cap: cap message exists.")
+                            logging.info("Not reporting cap: cap message exists.")
                         if not cap_msg_list:
                             cap_list.append((user, cap_str))
 
