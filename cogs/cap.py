@@ -92,6 +92,16 @@ class Cap():
         await ctx.send(ret_str)
 
     @cap.command()
+    async def clan(self, ctx):
+        """Returns the number of people in the clan."""
+        clan_parser = MyHTMLParser()
+        async with aiohttp.ClientSession() as session:
+            req_html = await fetch(session, clan_url)
+        clan_parser.feed(req_html)
+        clan_list = clan_parser.data
+        await ctx.send(len(clan_list))
+
+    @cap.command()
     @commands.check(cap_handler_and_channel)
     async def force(self, ctx, *, force_user):
         """Forces a single user to update."""

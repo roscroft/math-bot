@@ -3,7 +3,6 @@ resources/
 subs/markov/resources/
 __init__.py
 config.py
-runalogcheck.sh
 *.csv
 *.txt
 !requirements.txt
