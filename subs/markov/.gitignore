@@ -2,4 +2,3 @@ resources/json/
 resources/rjson/
 *.txt
 *.json
-__pycache__
