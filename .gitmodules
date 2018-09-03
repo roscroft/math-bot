@@ -1,6 +1,3 @@
 [submodule "subs/solver"]
 	path = subs/solver
 	url = https://github.com/roscroft/solver
-[submodule "subs/markov"]
-	path = subs/markov
-	url = https://github.com/coizioc/math-bot-markov
