@@ -1,6 +1,6 @@
 [submodule "subs/markov"]
 	path = subs/markov
-	url = https://github.com/coizioc/MemersMarkov
+	url = https://github.com/coizioc/math-bot-markov
 [submodule "subs/solver"]
 	path = subs/solver
 	url = https://github.com/roscroft/solver
