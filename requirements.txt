@@ -1,8 +1,11 @@
 aiohttp==2.2.5
 astroid==1.6.1
-async-timeout==2.0.0
+async-timeout==2.0.1
+asyncpg==0.17.0
 certifi==2018.1.18
 chardet==3.0.4
+discord.py==1.0.0a1458+g95de4d1
+gurobipy==7.5.2
 idna==2.6
 isort==4.3.4
 julia==0.1.5
@@ -14,8 +17,9 @@ pylint==1.8.2
 requests==2.18.4
 six==1.11.0
 SQLAlchemy==1.2.2
+ujson==1.35
 Unidecode==1.0.22
 urllib3==1.22
 websockets==4.0.1
 wrapt==1.10.11
-yarl==1.1.0
+yarl==1.1.1
