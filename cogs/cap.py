@@ -58,31 +58,34 @@ class Cap():
         """Forces a single user to update."""
         out_msg = ""
         if force_user == "all":
-            async with self.bot.pool.acquire() as connection:
-                async with connection.transaction():
-
-
-            capped_users = SESSION.query(Account.rsn, Account.last_cap_time).all()
-            for (user, cap_date) in capped_users:
-                cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
-                datetime_list = cap_date.split(" ")
-                date_report = datetime_list[0]
-                time_report = datetime_list[1]
-                out_msg += (f"{user} has capped at the citadel on {date_report} "
-                            f"at {time_report}.\n")
+            async with self.bot.pool.acquire() as con:
+                statement = '''SELECT account.last_cap, names.rsn FROM account LEFT JOIN names
+                                on account.id = names.disc_id;'''
+                async for record in con.cursor(statement):
+                    last_cap = record['last_cap']
+                    rsn = record['rsn']
+                    last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
+                    datetime_list = last_cap.split(" ")
+                    date_report = datetime_list[0]
+                    time_report = datetime_list[1]
+                    out_msg += (f"{rsn} has capped at the citadel on {date_report} "
+                                f"at {time_report}.\n")
         else:
-            cap_date = SESSION.query(
-                Account.last_cap_time).filter(Account.rsn == force_user).first()
-            if cap_date is not None:
-                cap_date = cap_date[0]
-                cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
-                datetime_list = cap_date.split(" ")
-                date_report = datetime_list[0]
-                time_report = datetime_list[1]
-                out_msg = (f"{force_user} has capped at the citadel on {date_report} "
-                           f"at {time_report}.")
-            else:
-                out_msg = f"{force_user} not in database."
+            async with self.bot.pool.acquire() as con:
+                statement = f'''SELECT account.last_cap FROM account LEFT JOIN names
+                                on account.id = names.disc_id WHERE names.rsn = {force_user};'''
+                async for record in con.cursor(statement):
+                    last_cap = record['last_cap']
+                    if last_cap is not None:
+                        last_cap = last_cap[0]
+                        last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
+                        datetime_list = last_cap.split(" ")
+                        date_report = datetime_list[0]
+                        time_report = datetime_list[1]
+                        out_msg = (f"{force_user} has capped at the citadel on {date_report} "
+                                   f"at {time_report}.")
+                    else:
+                        out_msg = f"{force_user} not in database."
         await ctx.send(out_msg)
 
     @cap.command(name="del")
@@ -207,12 +210,3 @@ async def fetch(session, url):
     async with async_timeout.timeout(10):
         async with session.get(url) as response:
             return await response.text()
-
-def update_db(cap_date, user):
-    """Returns an insert record or None for the database."""
-    primary_key_map = {"rsn": user}
-    account_dict = {"rsn": user, "last_cap_time": cap_date}
-    account_record = Account(**account_dict)
-    return upsert(SESSION, Account, primary_key_map, account_record)
-
-
