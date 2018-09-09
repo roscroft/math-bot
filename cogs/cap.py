@@ -10,7 +10,7 @@ from discord.ext import commands
 from config import cap_channel
 from config import player_url
 from config import clan_url
-from dbs import SESSION, Account, MyHTMLParser, upsert
+from helpers import MyHTMLParser
 
 class Cap():
     """Defines the cap command and functions."""
@@ -58,6 +58,10 @@ class Cap():
         """Forces a single user to update."""
         out_msg = ""
         if force_user == "all":
+            async with self.bot.pool.acquire() as connection:
+                async with connection.transaction():
+
+
             capped_users = SESSION.query(Account.rsn, Account.last_cap_time).all()
             for (user, cap_date) in capped_users:
                 cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")

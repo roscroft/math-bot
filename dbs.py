@@ -1,130 +1,112 @@
 #!/usr/bin/python3.6
 """Runs the alog checks and updates the database/outfiles appropriately"""
-import os
-import argparse
-from html.parser import HTMLParser
-import requests
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-ABSPATH = os.path.dirname(os.path.abspath(__file__))
-ENGINE = create_engine(f"sqlite:///{ABSPATH}/clan.db")
-MASTER_SESSION = sessionmaker(bind=ENGINE)
-BASE = declarative_base()
-REQUEST_SESSION = requests.session()
-SESSION = MASTER_SESSION()
+async def create_database(pool, reinit):
+    """Calls the individual table creation functions."""
+    conn = await pool.acquire()
 
-class Account(BASE):
-    """Relates Discord IDs to RSNs"""
-    __tablename__ = 'account'
-    disc_id = Column(String(50), primary_key=True)
-    rsn = Column(String(50), primary_key=True)
-    last_cap_time = Column(DateTime)
-    total_caps = Column(Integer)
-    search_string = Column(String(50))
-    satisfies = Column(Boolean)
+    if reinit:
+        await conn.execute('''
+            DROP TABLE IF EXISTS account;
+            DROP TABLE IF EXISTS name;
+            DROP TABLE IF EXISTS xp;
+        ''')
+    await create_account_table(conn)
+    await create_name_table(conn)
+    await create_xp_table(conn)
 
-class XP(BASE):
-    """Stores users, dates, and skill levels/xp"""
-    __tablename__ = 'xp'
-    xp_id = Column(Integer, primary_key=True)
-    disc_id = Column(String(50), ForeignKey("account.disc_id"), nullable=False)
-    rsn = Column(String(50), ForeignKey("account.rsn"), nullable=False)
-    date = Column(DateTime)
-    attack_level = Column(Integer)
-    attack_xp = Column(Integer)
-    defence_level = Column(Integer)
-    defence_xp = Column(Integer)
-    strength_level = Column(Integer)
-    strength_xp = Column(Integer)
-    constitution_level = Column(Integer)
-    constitution_xp = Column(Integer)
-    ranged_level = Column(Integer)
-    ranged_xp = Column(Integer)
-    prayer_level = Column(Integer)
-    prayer_xp = Column(Integer)
-    magic_level = Column(Integer)
-    magic_xp = Column(Integer)
-    cooking_level = Column(Integer)
-    cooking_xp = Column(Integer)
-    woodcutting_level = Column(Integer)
-    woodcutting_xp = Column(Integer)
-    fletching_level = Column(Integer)
-    fletching_xp = Column(Integer)
-    fishing_level = Column(Integer)
-    fishing_xp = Column(Integer)
-    firemaking_level = Column(Integer)
-    firemaking_xp = Column(Integer)
-    crafting_level = Column(Integer)
-    crafting_xp = Column(Integer)
-    smithing_level = Column(Integer)
-    smithing_xp = Column(Integer)
-    mining_level = Column(Integer)
-    mining_xp = Column(Integer)
-    herblore_level = Column(Integer)
-    herblore_xp = Column(Integer)
-    agility_level = Column(Integer)
-    agility_xp = Column(Integer)
-    theiving_level = Column(Integer)
-    theiving_xp = Column(Integer)
-    slayer_level = Column(Integer)
-    slayer_xp = Column(Integer)
-    farming_level = Column(Integer)
-    farming_xp = Column(Integer)
-    runecrafting_level = Column(Integer)
-    runecrafting_xp = Column(Integer)
-    hunter_level = Column(Integer)
-    hunter_xp = Column(Integer)
-    construction_level = Column(Integer)
-    construction_xp = Column(Integer)
-    summoning_level = Column(Integer)
-    summoning_xp = Column(Integer)
-    dungeoneering_level = Column(Integer)
-    dungeoneering_xp = Column(Integer)
-    divination_level = Column(Integer)
-    divination_xp = Column(Integer)
-    invention_level = Column(Integer)
-    invention_xp = Column(Integer)
+async def create_account_table(conn):
+    """Creates a table called account."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS account(
+            id text not null,
+            last_cap_time timestamp,
+            total_caps integer,
+            search_string text,
+            satisfies bool,
+            PRIMARY KEY (id)
+        )
+    ''')
 
-def init_db():
-    """Initializes and optionally clears out the clan info database"""
-    BASE.metadata.bind = ENGINE
-    BASE.metadata.create_all(ENGINE)
+async def create_name_table(conn):
+    """Creates a table called name."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS name(
+            disc_id text NOT NULL,
+            rsn text NOT NULL,
+            PRIMARY KEY (disc_id, rsn),
+            FOREIGN KEY (disc_id) REFERENCES account (id)
+        )
+    ''')
 
-def upsert(session, table, primary_key_map, obj):
-    """Decides whether to insert or update an object."""
-    first = session.query(table).filter_by(**primary_key_map).first()
-    if first != None:
-        keys = table.__table__.columns.keys()
-        session.query(table).filter_by(**primary_key_map).update(
-            {column: getattr(obj, column) for column in keys})
-        return None
-    return obj
-
-class MyHTMLParser(HTMLParser):
-    """Builds an HTML parser."""
-    def handle_data(self, data):
-        if data.startswith("\nvar data;"):
-            list_start = data.find("[")
-            list_end = data.find("]")
-            clan_members = data[list_start+1:list_end]
-            clan_members = clan_members.split(", ")
-            clan_list = []
-            for item in clan_members:
-                add_item = item[1:-1]
-                add_item = add_item.replace(u'\xa0', u' ')
-                clan_list.append(add_item)
-            self.data = clan_list
+async def create_xp_table(conn):
+    """Creates a table called xp."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS xp(
+            id serial,
+            rsn text NOT NULL,
+            date timestamp,
+            attack_level integer,
+            attack_xp integer,
+            defence_level integer,
+            defence_xp integer,
+            strength_level integer,
+            strength_xp integer,
+            constitution_level integer,
+            constitution_xp integer,
+            ranged_level integer,
+            ranged_xp integer,
+            prayer_level integer,
+            prayer_xp integer,
+            magic_level integer,
+            magic_xp integer,
+            cooking_level integer,
+            cooking_xp integer,
+            woodcutting_level integer,
+            woodcutting_xp integer,
+            fletching_level integer,
+            fletching_xp integer,
+            fishing_level integer,
+            fishing_xp integer,
+            firemaking_level integer,
+            firemaking_xp integer,
+            crafting_level integer,
+            crafting_xp integer,
+            smithing_level integer,
+            smithing_xp integer,
+            mining_level integer,
+            mining_xp integer,
+            herblore_level integer,
+            herblore_xp integer,
+            agility_level integer,
+            agility_xp integer,
+            theiving_level integer,
+            theiving_xp integer,
+            slayer_level integer,
+            slayer_xp integer,
+            farming_level integer,
+            farming_xp integer,
+            runecrafting_level integer,
+            runecrafting_xp integer,
+            hunter_level integer,
+            hunter_xp integer,
+            construction_level integer,
+            construction_xp integer,
+            summoning_level integer,
+            summoning_xp integer,
+            dungeoneering_level integer,
+            dungeoneering_xp integer,
+            divination_level integer,
+            divination_xp integer,
+            invention_level integer,
+            invention_xp integer,
+            PRIMARY KEY(id, rsn)
+        )
+    ''')
 
 def main():
-    """Runs the stuff."""
-    parser = argparse.ArgumentParser(description="Choose script actions.")
-    parser.add_argument("-i", "--init", help="Reinitializes the database.", action="store_true")
-    args = parser.parse_args()
-    if args.init:
-        init_db()
+    """Defines behavior when called directly."""
+    pass
 
 if __name__ == "__main__":
     main()
