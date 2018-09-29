@@ -6,19 +6,23 @@ async def main():
 
     conn = await asyncpg.connect('postgresql://austin:postgre@localhost/clan')
 
-    await conn.execute('''
-        CREATE TABLE account(
-            disc_id text PRIMARY KEY,
-            rsn text
-        )
-    ''')
+    # await conn.execute('''
+    #     CREATE TABLE account(
+    #         disc_id text PRIMARY KEY,
+    #         rsn text
+    #     )
+    # ''')
 
-    await conn.execute('''
-        INSERT INTO account(disc_id, rsn) VALUES($1, $2)
-    ''', '215367025705484289', 'iMath')
+    # await conn.execute('''
+    #     INSERT INTO account(disc_id, rsn) VALUES($1, $2)
+    # ''', '215367025705484289', 'iMath')
 
-    row = await conn.fetchrow(
-        'SELECT * FROM account WHERE rsn = $1', 'iMath')
+    # row = await conn.fetchrow(
+    #     'SELECT * FROM account WHERE rsn = $1', 'iMath')
+
+    account_id_stmt = f'''SELECT id FROM account LEFT JOIN name on account.id = name.disc_id WHERE name.rsn = "iMath"'''
+    value = await conn.fetchval(account_id_stmt)
+    print(value)
 
     await conn.close()
 

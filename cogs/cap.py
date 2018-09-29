@@ -59,8 +59,8 @@ class Cap():
         out_msg = ""
         if force_user == "all":
             async with self.bot.pool.acquire() as con:
-                statement = '''SELECT account.last_cap, names.rsn FROM account LEFT JOIN names
-                                on account.id = names.disc_id;'''
+                statement = '''SELECT account.last_cap, name.rsn FROM account LEFT JOIN name
+                                on account.id = name.disc_id;'''
                 async for record in con.cursor(statement):
                     last_cap = record['last_cap']
                     rsn = record['rsn']
@@ -72,8 +72,8 @@ class Cap():
                                 f"at {time_report}.\n")
         else:
             async with self.bot.pool.acquire() as con:
-                statement = f'''SELECT account.last_cap FROM account LEFT JOIN names
-                                on account.id = names.disc_id WHERE names.rsn = {force_user};'''
+                statement = f'''SELECT account.last_cap FROM account LEFT JOIN name
+                                on account.id = name.disc_id WHERE name.rsn = {force_user};'''
                 async for record in con.cursor(statement):
                     last_cap = record['last_cap']
                     if last_cap is not None:
@@ -139,8 +139,6 @@ class Cap():
                         logging.info("Not reporting cap: before build tick.")
                     else:
                         cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
-                        add_list.append(update_db(cap_date, user))
-
                         datetime_list = cap_date.split(" ")
                         cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
                                    f" at {datetime_list[1]}.")
@@ -148,18 +146,44 @@ class Cap():
                             lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
                                 lambda m, c_s=cap_str: c_s in m).flatten()
                         if cap_msg_list:
-                            logging.info("Not report cap: cap message exists.")
+                            logging.info("Not reporting cap: cap message exists.")
                         if not cap_msg_list:
-                            cap_list.append((user, cap_str))
+                            cap_list.append((user, cap_date, cap_str))
 
             logging.info(cap_list)
 
-            for user, cap_str in cap_list:
+            for user, cap_date, cap_str in cap_list:
                 await self.bot.cap_ch.send(cap_str)
 
-            add_list = [item for item in add_list if item is not None]
-            SESSION.add_all(add_list)
-            SESSION.commit()
+                async with self.bot.pool.acquire() as con:
+                    account_id_stmt = f'''
+                        SELECT id FROM account LEFT JOIN name on account.id = name.disc_id 
+                        WHERE name.rsn = {user}
+                        '''
+                    
+                    total_caps_stmt = f'''
+                        SELECT total_caps FROM account WHERE id = {account_id}
+                    '''
+                    total_caps = 0
+                    async for record in con.cursor(total_caps_stmt):
+                        total_caps = record['total_caps']
+                    total_caps += 1
+
+                    exists_stmt = f'''
+                        SELECT 1 FROM account
+                        SELECT 1 FROM account LEFT JOIN name on account.id = name.disc_id 
+                        WHERE name.rsn = {user};
+                    '''
+                    update_stmt = f'''
+                        UPDATE account SET last_cap_time = {cap_date}, total_caps = {total_caps} 
+                        WHERE 
+                    if exists:
+                        update
+                        
+
+
+                await con.fetchval(exists_stmt)
+
 
             await asyncio.sleep(600)
 

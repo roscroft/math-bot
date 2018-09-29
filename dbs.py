@@ -22,8 +22,6 @@ async def create_account_table(conn):
             id text not null,
             last_cap_time timestamp,
             total_caps integer,
-            search_string text,
-            satisfies bool,
             PRIMARY KEY (id)
         )
     ''')
@@ -35,7 +33,6 @@ async def create_name_table(conn):
             disc_id text NOT NULL,
             rsn text NOT NULL,
             PRIMARY KEY (disc_id, rsn),
-            FOREIGN KEY (disc_id) REFERENCES account (id)
         )
     ''')
 
