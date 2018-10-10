@@ -7,18 +7,18 @@ async def create_database(pool, reinit):
 
     if reinit:
         await conn.execute('''
+            DROP TABLE IF EXISTS rs;
             DROP TABLE IF EXISTS account;
-            DROP TABLE IF EXISTS name;
             DROP TABLE IF EXISTS xp;
         ''')
+    await create_rs_table(conn)
     await create_account_table(conn)
-    await create_name_table(conn)
     await create_xp_table(conn)
 
-async def create_account_table(conn):
-    """Creates a table called account."""
+async def create_rs_table(conn):
+    """Creates a table called rs."""
     await conn.execute('''
-        CREATE TABLE IF NOT EXISTS account(
+        CREATE TABLE IF NOT EXISTS rs(
             id text not null,
             last_cap_time timestamp,
             total_caps integer,
@@ -26,10 +26,10 @@ async def create_account_table(conn):
         )
     ''')
 
-async def create_name_table(conn):
-    """Creates a table called name."""
+async def create_account_table(conn):
+    """Creates a table called account."""
     await conn.execute('''
-        CREATE TABLE IF NOT EXISTS name(
+        CREATE TABLE IF NOT EXISTS account(
             disc_id text NOT NULL,
             rsn text NOT NULL,
             PRIMARY KEY (disc_id, rsn),

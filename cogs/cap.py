@@ -57,35 +57,35 @@ class Cap():
     async def force(self, ctx, *, force_user):
         """Forces a single user to update."""
         out_msg = ""
-        if force_user == "all":
-            async with self.bot.pool.acquire() as con:
-                statement = '''SELECT account.last_cap, name.rsn FROM account LEFT JOIN name
-                                on account.id = name.disc_id;'''
-                async for record in con.cursor(statement):
-                    last_cap = record['last_cap']
-                    rsn = record['rsn']
-                    last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
-                    datetime_list = last_cap.split(" ")
-                    date_report = datetime_list[0]
-                    time_report = datetime_list[1]
-                    out_msg += (f"{rsn} has capped at the citadel on {date_report} "
-                                f"at {time_report}.\n")
-        else:
-            async with self.bot.pool.acquire() as con:
-                statement = f'''SELECT account.last_cap FROM account LEFT JOIN name
-                                on account.id = name.disc_id WHERE name.rsn = {force_user};'''
-                async for record in con.cursor(statement):
-                    last_cap = record['last_cap']
-                    if last_cap is not None:
-                        last_cap = last_cap[0]
+        async with self.bot.pool.acquire() as con:
+            async with con.transaction():
+                if force_user == "all":
+                    statement = """SELECT rs.last_cap_time, account.rsn FROM rs LEFT JOIN 
+                                account on rs.id = account.disc_id;"""
+                    async for record in con.cursor(statement):
+                        last_cap = record['last_cap']
+                        rsn = record['rsn']
                         last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
                         datetime_list = last_cap.split(" ")
                         date_report = datetime_list[0]
                         time_report = datetime_list[1]
-                        out_msg = (f"{force_user} has capped at the citadel on {date_report} "
-                                   f"at {time_report}.")
-                    else:
-                        out_msg = f"{force_user} not in database."
+                        out_msg += (f"{rsn} has capped at the citadel on {date_report} "
+                                    f"at {time_report}.\n")
+                else:
+                    statement = f"""SELECT rs.last_cap_time FROM rs LEFT JOIN account on 
+                                 rs.id = account.disc_id WHERE account.rsn = '{force_user}';"""
+                    async for record in con.cursor(statement):
+                        last_cap = record['last_cap']
+                        if last_cap is not None:
+                            last_cap = last_cap[0]
+                            last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
+                            datetime_list = last_cap.split(" ")
+                            date_report = datetime_list[0]
+                            time_report = datetime_list[1]
+                            out_msg = (f"{force_user} has capped at the citadel on {date_report} "
+                                        f"at {time_report}.")
+                        else:
+                            out_msg = f"{force_user} not in database."
         await ctx.send(out_msg)
 
     @cap.command(name="del")
@@ -116,17 +116,20 @@ class Cap():
         """Displays the last build tick."""
         await ctx.send(f"Last build tick: {self.bot.last_build_tick}")
 
+    async def get_clan_list():
+        clan_parser = MyHTMLParser()
+        async with aiohttp.ClientSession() as session:
+            req_html = await fetch(session, clan_url)
+        clan_parser.feed(req_html)
+        clan_list = clan_parser.data
+        return clan_list
+
     async def report_caps(self):
         """Reports caps."""
         await self.bot.wait_until_ready()
         self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
-            clan_parser = MyHTMLParser()
-            async with aiohttp.ClientSession() as session:
-                req_html = await fetch(session, clan_url)
-            clan_parser.feed(req_html)
-            clan_list = clan_parser.data
-            add_list = []
+            clan_list = await get_clan_list()
             cap_list = []
             logging.info(f"Last build tick: {self.bot.last_build_tick}")
             for user in clan_list:
@@ -156,26 +159,26 @@ class Cap():
                 await self.bot.cap_ch.send(cap_str)
 
                 async with self.bot.pool.acquire() as con:
-                    account_id_stmt = f'''
-                        SELECT id FROM account LEFT JOIN name on account.id = name.disc_id 
-                        WHERE name.rsn = {user}
-                        '''
+                    rs_id_stmt = f"""
+                        SELECT id FROM rs LEFT JOIN account on rs.id = account.disc_id 
+                        WHERE account.rsn = '{user}'
+                        """
                     
-                    total_caps_stmt = f'''
-                        SELECT total_caps FROM account WHERE id = {account_id}
-                    '''
+                    total_caps_stmt = f"""
+                        SELECT total_caps FROM rs WHERE id = '{rs_id}'
+                    """
                     total_caps = 0
                     async for record in con.cursor(total_caps_stmt):
                         total_caps = record['total_caps']
                     total_caps += 1
 
-                    exists_stmt = f'''
-                        SELECT 1 FROM account
-                        SELECT 1 FROM account LEFT JOIN name on account.id = name.disc_id 
-                        WHERE name.rsn = {user};
-                    '''
-                    update_stmt = f'''
-                        UPDATE account SET last_cap_time = {cap_date}, total_caps = {total_caps} 
+                    exists_stmt = f"""
+                        SELECT 1 FROM rs
+                        SELECT 1 FROM rs LEFT JOIN account on rs.id = account.disc_id 
+                        WHERE account.rsn = '{user}';
+                    """
+                    
+                        UPDATE rs SET last_cap_time = {cap_date}, total_caps = {total_caps} 
                         WHERE 
                     if exists:
                         update

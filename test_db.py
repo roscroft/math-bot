@@ -20,9 +20,13 @@ async def main():
     # row = await conn.fetchrow(
     #     'SELECT * FROM account WHERE rsn = $1', 'iMath')
 
-    account_id_stmt = f'''SELECT id FROM account LEFT JOIN name on account.id = name.disc_id WHERE name.rsn = "iMath"'''
-    value = await conn.fetchval(account_id_stmt)
-    print(value)
+    # account_id_stmt = f"""SELECT id FROM account LEFT JOIN name on account.id = name.disc_id WHERE name.rsn = 'iMath'"""
+    account_id_stmt = f"""SELECT account.last_cap_time, name.rsn FROM account LEFT JOIN name on account.id = name.disc_id;"""
+    async with conn.transaction():
+        async for record in conn.cursor(account_id_stmt):
+            print(record)
+    # value = await conn.fetchval(account_id_stmt)
+    # print(value)
 
     await conn.close()
 
