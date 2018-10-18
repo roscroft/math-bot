@@ -1,38 +1,76 @@
 #!/usr/bin/python3.6
-"""Runs the alog checks and updates the database/outfiles appropriately"""
+"""Creates all tables in the database."""
+import asyncio
+import asyncpg
 
-async def create_database(pool, reinit):
+async def create_database(reinit, pool=None):
     """Calls the individual table creation functions."""
-    conn = await pool.acquire()
+    if pool is not None:
+        conn = await pool.acquire()
+    else:
+        conn = await asyncpg.connect('postgresql://austin:postgre@localhost/clan')
 
     if reinit:
         await conn.execute('''
-            DROP TABLE IF EXISTS rs;
             DROP TABLE IF EXISTS account;
+            DROP TABLE IF EXISTS rs;
+            DROP TABLE IF EXISTS account_owned;
+            DROP TABLE IF EXISTS caps;
             DROP TABLE IF EXISTS xp;
         ''')
-    await create_rs_table(conn)
     await create_account_table(conn)
+    await create_rs_table(conn)
+    await create_account_owned_table(conn)
+    await create_caps_table(conn)
     await create_xp_table(conn)
 
-async def create_rs_table(conn):
-    """Creates a table called rs."""
-    await conn.execute('''
-        CREATE TABLE IF NOT EXISTS rs(
-            id text not null,
-            last_cap_time timestamp,
-            total_caps integer,
-            PRIMARY KEY (id)
-        )
-    ''')
-
 async def create_account_table(conn):
-    """Creates a table called account."""
+    """Creates account table for unique account information."""
     await conn.execute('''
         CREATE TABLE IF NOT EXISTS account(
             disc_id text NOT NULL,
+            highest_role text,
+            total_caps integer,
+            PRIMARY KEY (disc_id)
+        )
+    ''')
+
+async def create_rs_table(conn):
+    """Creates rs table for runescape information."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS rs(
             rsn text NOT NULL,
-            PRIMARY KEY (disc_id, rsn),
+            clan_rank text,
+            PRIMARY KEY (rsn)
+        )
+    ''')
+
+async def create_account_owned_table(conn):
+    """Creates account_owned table, tracking historical name data."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS account_owned(
+            id serial,
+            disc_id text NOT NULL,
+            rsn text NOT NULL,
+            is_main boolean,
+            start_dtg timestamp,
+            end_dtg timestamp,
+            PRIMARY KEY (id),
+            FOREIGN KEY (disc_id) REFERENCES account(disc_id),
+            FOREIGN KEY (rsn) REFERENCES rs(rsn)
+        )
+    ''')
+
+
+async def create_caps_table(conn):
+    """Creates caps table for tracking cap information."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS cap(
+            id serial,
+            rsn text NOT NULL,
+            last_cap_time timestamp,
+            PRIMARY KEY (id),
+            FOREIGN KEY (rsn) REFERENCES rs(rsn)
         )
     ''')
 
@@ -42,7 +80,7 @@ async def create_xp_table(conn):
         CREATE TABLE IF NOT EXISTS xp(
             id serial,
             rsn text NOT NULL,
-            date timestamp,
+            dtg timestamp,
             attack_level integer,
             attack_xp integer,
             defence_level integer,
@@ -97,13 +135,16 @@ async def create_xp_table(conn):
             divination_xp integer,
             invention_level integer,
             invention_xp integer,
-            PRIMARY KEY(id, rsn)
+            PRIMARY KEY(id),
+            FOREIGN KEY (rsn) REFERENCES rs(rsn)
         )
     ''')
 
 def main():
-    """Defines behavior when called directly."""
-    pass
+    """Runs the database creation."""
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(create_database(True))
 
 if __name__ == "__main__":
     main()
