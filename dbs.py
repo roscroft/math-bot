@@ -1,5 +1,6 @@
 #!/usr/bin/python3.6
 """Creates all tables in the database."""
+from config import db_name
 import asyncio
 import asyncpg
 
@@ -8,7 +9,7 @@ async def create_database(reinit, pool=None):
     if pool is not None:
         conn = await pool.acquire()
     else:
-        conn = await asyncpg.connect('postgresql://austin:postgre@localhost/clan')
+        conn = await asyncpg.connect(db_name)
 
     if reinit:
         await conn.execute('''
