@@ -52,7 +52,7 @@ def remove_from_json(filename, call):
         responses.pop(call)
         with open(f"./resources/{filename}", "w") as response_file:
             json.dump(responses, response_file)
-        return (response, user)
+        return (user, response)
     return (None, None)
 
 def list_from_json(filename, is_img):
@@ -117,8 +117,12 @@ class Memers():
         """Adds a new call/response pair. Bad additions will get your privileges revoked."""
         filename = "responses.json"
         user = ctx.author.name
-        out_msg = add_to_json(filename, call, response, user, False)
-        await ctx.send(out_msg)
+        if " " not in call:
+            out_msg = "If you're getting this message then your call was probably terrible."
+            await ctx.send(out_msg)
+        else:
+            out_msg = add_to_json(filename, call, response, user, False)
+            await ctx.send(out_msg)
 
     @commands.command(name="rm", hidden=True)
     async def remove(self, ctx, call):
