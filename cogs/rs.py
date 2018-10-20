@@ -5,7 +5,7 @@ import datetime
 import requests
 import discord
 from discord.ext import commands
-from config import player_url
+from utils.config import player_url
 
 REQUEST_SESSION = requests.session()
 

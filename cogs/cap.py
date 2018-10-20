@@ -7,9 +7,9 @@ import aiohttp
 import asyncpg
 import async_timeout
 from discord.ext import commands
-from config import cap_channel
-from config import player_url
-from config import clan_url
+from utils.config import cap_channel
+from utils.config import player_url
+from utils.config import clan_url
 from helpers import MyHTMLParser
 
 class Cap():
