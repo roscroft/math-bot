@@ -1,11 +1,12 @@
 """Defines RS-related commands in the RS class."""
 import json
 import time
+import random
 import datetime
 import requests
 import discord
 from discord.ext import commands
-from config import player_url
+from utils.config import player_url
 
 REQUEST_SESSION = requests.session()
 
@@ -30,6 +31,27 @@ class RS():
 
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.command()
+    async def roll(self, ctx, *args):
+        """Rolls a random number."""
+        try:
+            if len(args) == 1:
+                minint = 1
+                maxint = int(args[0])
+            elif len(args) == 2:
+                minint = int(args[0])
+                maxint = int(args[1])
+            else:
+                await ctx.send('Error: invalid arguments. Syntax is `~roll [maxint]` or `~roll [minint] [maxint]`.')
+                return
+        except ValueError:
+            await ctx.send('Error: one or both arguments are not valid numbers.')
+            return
+        if minint >= maxint:
+            await ctx.send(f'Error: min greater than or equal to max ({minint} >= {maxint})')
+        else:
+            await ctx.send(f'Rolled {random.randint(minint, maxint)}!')
 
     @commands.command()
     async def reset(self, ctx):

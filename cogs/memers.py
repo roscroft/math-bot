@@ -5,10 +5,9 @@ import random
 import asyncio
 import discord
 from discord.ext import commands
-import config
+from utils import config
 
 MODS_FILE = './resources/mods.txt'
-
 MAX_VOTES = 10
 
 def check_votes(user):
@@ -89,11 +88,6 @@ def list_user_adds(filename, user, is_img):
     out_msg = f"```{out_msg}```"
     return out_msg
 
-def get_mod_ids():
-    with open(MODS_FILE, 'r') as txt_file:
-        mod_ids = txt_file.read().splitlines()
-    return mod_ids
-
 class Memers():
     """Defines the cap command and functions."""
 
@@ -110,18 +104,12 @@ class Memers():
         In reality this just checks if a subcommand is being invoked.
         """
         if ctx.invoked_subcommand is None:
-            await ctx.send('No, {0.subcommand_passed} is not cool'.format(ctx))
+            await ctx.send(f"No, {ctx.subcommand_passed} is not cool.")
 
     @cool.command(name='bot')
     async def _bot(self, ctx):
         """Is the bot cool?"""
         await ctx.send('Yes, the bot is cool.')
-
-    @commands.command()
-    async def markdonalds(self, ctx):
-        """Lets the command markdonalds return the mRage emoji."""
-        mrage = self.bot.get_emoji(413441118102093824)
-        await ctx.send(f"{mrage}")
 
     @commands.command()
     # @commands.is_owner()
@@ -277,45 +265,60 @@ class Memers():
         self.bot.pct = float(pct)/100.0
         await ctx.send(f"New reaction percentage chosen: {self.bot.pct}")
 
-    @commands.command(aliases=['mod'])
+    @commands.group(invoke_without_command=True)
     @commands.is_owner()
-    async def mods(self, ctx, *args):
-        """Adds/Removes/Shows mod privileges to/from/of a user. Bot owner only!"""
-        if len(args) == 0:
-            out = '**Current Mods**:\n'
-            for userid in get_mod_ids():
-                try:
-                    mod_member = ctx.guild.get_member(int(userid))
-                    out += f'{mod_member.name}\n'
-                except ValueError:
-                    out += 'Unknown User\n'
-        elif len(args) == 2:
-            command, name = args
-            count = 0
-            for member in ctx.guild.members:
-                if name.lower() == member.name.lower():
-                    targetid = member.id
-                    count += 1
-            if count == 0:
-                out = f'Error: name {name} not found in server.'
-            elif count > 1:
-                out = f'Error: string {name} refers to more than one person.'
-            elif command == 'add':
-                with open(MODS_FILE, 'a+') as txt_file:
-                    txt_file.write(f'{targetid}\n')
-                out = f'{name.title()} added as mod!'
-            elif command == 'remove':
-                mod_ids = [userid for userid in get_mod_ids() if userid != str(targetid)]
-                with open(MODS_FILE, 'w+') as txt_file:
-                    txt_file.write('\n'.join(mod_ids) + '\n')
-                out = f'{name.title()} removed as mod!'
-            else:
-                out = f'Error: invalid syntax. Command must be in the form `$mods [add/remove] [username]` or '\
-                      f'`$mods`.'
+    async def mod(self, ctx, *args):
+        """Provides the ability to add and remove bot moderators."""
+        if ctx.invoked_subcommand is None:
+            pass
+
+    @mod.command(alias="list")
+    @commands.is_owner()
+    async def modlist(self, ctx):
+        """Lists all mods on the server."""
+        out_msg = ""
+        with open(f"./resources/mods.json", "r+") as mod_file:
+            mods = json.load(mod_file)
+            for mod_id, mod_name in mods.items():
+                out_msg += f"Mod: {mod_name}\n"
+        out_msg = f"```{out_msg}```"
+        await ctx.send(out_msg)
+
+    @mod.command(alias="add")
+    @commands.is_owner()
+    async def modadd(self, ctx, new_mod_id):
+        """Adds a new mod."""
+        new_mod = self.bot.get_user(new_mod_id)
+        new_mod_name = new_mod.name
+        out_msg = ""
+        with open(f"./resources/mods.json", "r+") as mod_file:
+            mods = json.load(mod_file)
+        if new_mod in mods:
+            out_msg = f"{new_mod_name} is already a mod!"
         else:
-            out = f'Error: invalid syntax. Command must be in the form `$mods [add/remove] [username]` or ' \
-                  f'`$mods`.'
-        await ctx.send(out)
+            mods[new_mod_id] = new_mod_name
+            with open(f"./resources/mods.json", "w") as mod_file:
+                json.dump(mods, mod_file)
+            out_msg = f"{new_mod_name} added to the mod list."
+        await ctx.send(out_msg)
+
+    @mod.command(alias="rm")
+    @commands.is_owner()
+    async def modrm(self, ctx, mod_id):
+        """Removes a current mod."""
+        mod = self.bot.get_user(mod_id)
+        mod_name = mod.na,e
+        out_msg = ""
+        with open(f"./resources/mods.json", "r+") as mod_file:
+            mods = json.load(mod_file)
+        if mod not in mods:
+            out_msg = f"{mod_name} is not a mod!"
+        else:
+            mods.pop(mod_id)
+            with open(f"./resources/mods.json", "w") as mod_file:
+                json.dump(mods, mod_file)
+            out_msg = f"{mod_name} removed from the mod list."
+        await ctx.send(out_msg)
 
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
@@ -353,10 +356,6 @@ class Memers():
             if ctx.content.lower() in ["i'm dad", "im dad"]:
                 await ctx.channel.send(f"No you're not, you're {ctx.author.mention}.")
 
-            # elif "i'm " in ctx.content.lower():
-            #     imindex = ctx.content.lower().index("i'm") + 4
-            #     await ctx.channel.send(f"Hi {ctx.content[imindex:]}, I'm Dad!")
-
         if ctx.content.lower() == "out":
             await ctx.channel.send(f":point_right: :door: :rage:")
 
@@ -366,21 +365,3 @@ class Memers():
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Memers(bot))
-
-        # schep_questions = ["does schep have tess", "did schep get tess", "does schep have tess yet"]
-        # milow_questions = ["does milow have ace", "did milow get ace", "does milow have ace yet"]
-        # if (content.lower() in schep_questions) or (content.lower()[:-1] in schep_questions):
-        #     schep_has_tess = SESSION.query(
-        #         HasTess.has_tess).filter(HasTess.name == "Schep").first()
-        #     if schep_has_tess is None or schep_has_tess[0] is False:
-        #         await channel.send(f"Schep does not have Tess, make sure to let him know ;)", tts=True)
-        #     else:
-        #         await channel.send(f"Schep finally got Tess!")
-
-        # elif (content.lower() in milow_questions) or (content.lower()[:-1] in milow_questions):
-        #     schep_has_tess = SESSION.query(
-        #         HasTess.has_tess).filter(HasTess.name == "Milow").first()
-        #     if schep_has_tess is None or schep_has_tess[0] is False:
-        #         await channel.send(f"Milow does not have Ace.", tts=True)
-        #     else:
-        #         await channel.send(f"Milow finally got Ace!")

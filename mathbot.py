@@ -2,8 +2,9 @@
 import os
 import sys
 import traceback
+import logging
 from discord.ext import commands
-import config
+from utils import config
 
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""
@@ -26,13 +27,14 @@ def submodules_generator():
 
 DESCRIPTION = "A basic bot that runs a couple of uninteresting cogs."
 
-# log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 class MathBot(commands.Bot):
     """Defines the mathbot class and functions."""
 
     def __init__(self):
         super().__init__(command_prefix=["$", "!"], description=DESCRIPTION)
+        self.token = config.token
         self.default_nick = "MathBot"
         self.add_command(self.load)
 
@@ -67,7 +69,7 @@ class MathBot(commands.Bot):
 
     def run(self):
         """Runs the bot with the token from the config file."""
-        super().run(config.token, reconnect=True)
+        super().run(self.token, reconnect=True)
 
     async def on_member_update(self, before, after):
         """Resets bot's nickname anytime it is changed."""

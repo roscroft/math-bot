@@ -1,13 +1,13 @@
 __pycache__/
 resources/
+test/
 subs/markov/resources/
-__init__.py
 config.py
+__init__.py
+*.pyc
 *.csv
 *.txt
 *.ini
-!requirements.txt
 *.log
 *.db
-testbot.py
-testlauncher.py
+!requirements.txt
