@@ -4,7 +4,7 @@ from datetime import timedelta
 import logging
 import asyncio
 import aiohttp
-import asyncpg
+# import asyncpg
 import async_timeout
 from discord.ext import commands
 from utils.config import cap_channel
@@ -20,11 +20,11 @@ class Cap():
         self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
         self.bot.build_tick_checker = self.bot.loop.create_task(self.get_build_tick())
 
-    async def in_cap_channel(ctx):
+    async def in_cap_channel(self, ctx):
         """Checks if the context channel is the cap channel."""
         return ctx.channel.id == cap_channel
 
-    async def cap_handler_and_channel(ctx):
+    async def cap_handler_and_channel(self, ctx):
         """Checks if the channel is the cap channel and the user is a cap handler."""
         return ("cap handler" in map(
             lambda r: r.name, ctx.author.roles)) and ctx.channel.id == cap_channel
@@ -58,43 +58,43 @@ class Cap():
         """Forces a single user to update."""
         out_msg = ""
         all_stmt = f"""SELECT rsn, last_cap_time FROM caps;"""
-        user_stmt = f"""SELECT rsn, last_cap_time FROM caps WHERE rsn = '{force_user}';"""
+        user_stmt = f"""SELECT rsn, last_cap_time FROM caps WHERE rsn = $1;"""
         async with self.bot.pool.acquire() as con:
             if force_user == "all":
-                statment = all_stmt
+                statement = all_stmt
             else:
                 statement = user_stmt
-            async for record in con.cursor(statement):
+            async for record in con.cursor(statement, force_user)
                 rsn = record['rsn']
                 last_cap = record['last_cap_time']
                 if last_cap is not None:
                     last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
                     datetime_list = last_cap.split(" ")
-                    date_report = datetime_list[0]
-                    time_report = datetime_list[1]
-                    out_msg += (f"{rsn} has capped at the citadel on {date_report} "
-                                f"at {time_report}.\n")
+                    out_msg += (f"{rsn} has capped at the citadel on {datetime_list[0]} "
+                                f"at {datetime_list[1]}.\n")
                 else:
                     out_msg += f"{rsn} not in database.\n"
         await ctx.send(out_msg)
 
-    def is_bot(m):
-        return m.author == self.bot.user
+    def is_bot(self, msg):
+        """Checks if the user is the bot."""
+        return msg.author == self.bot.user
 
-    def is_bot_noncap(m):
-        return is_bot(m) and "capped" not in m.content
+    def is_bot_noncap(self, msg):
+        """Checks if the user is the bot and the message is a cap message."""
+        return self.is_bot(msg) and "capped" not in msg.content
 
     @cap.command(name="del")
     @commands.check(cap_handler_and_channel)
     async def _del(self, ctx, which):
         """Deletes specified message."""
         if which == "all":
-            await ctx.channel.purge(limit=200, check=is_bot)
+            await ctx.channel.purge(limit=200, check=self.is_bot)
         elif which == "noncap":
-            await ctx.channel.purge(limit=200, check=is_bot_noncap)
+            await ctx.channel.purge(limit=200, check=self.is_bot_noncap)
         else:
             before_msg = await ctx.channel.get_message(which)
-            await ctx.channel.purge(limit=200, check=is_bot, before=before_msg)
+            await ctx.channel.purge(limit=200, check=self.is_bot, before=before_msg)
 
     @cap.command(name="recheck")
     async def recheck(self, ctx):
@@ -106,15 +106,8 @@ class Cap():
         """Displays the last build tick."""
         await ctx.send(f"Last build tick: {self.bot.last_build_tick}")
 
-    async def get_clan_list():
-        clan_parser = MyHTMLParser()
-        async with aiohttp.ClientSession() as session:
-            req_html = await fetch(session, clan_url)
-        clan_parser.feed(req_html)
-        clan_list = clan_parser.data
-        return clan_list
-
-    async def get_cap_list(clan_list)
+    async def get_cap_list(self, clan_list):
+        """Gets the list of all clan members who have capped."""
         cap_list = []
         for user in clan_list:
             cap_date = await check_alog(user, "capped")
@@ -128,7 +121,7 @@ class Cap():
                     cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
                     datetime_list = cap_date.split(" ")
                     cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
-                                f" at {datetime_list[1]}.")
+                               f" at {datetime_list[1]}.")
                     cap_msg_list = await self.bot.cap_ch.history().filter(
                         lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
                             lambda m, c_s=cap_str: c_s in m).flatten()
@@ -139,7 +132,6 @@ class Cap():
         logging.info(cap_list)
         return cap_list
 
-
     async def report_caps(self):
         """Reports caps."""
         await self.bot.wait_until_ready()
@@ -147,40 +139,21 @@ class Cap():
         while not self.bot.is_closed():
             logging.info(f"Last build tick: {self.bot.last_build_tick}")
             clan_list = await get_clan_list()
-            cap_list = await get_cap_list(clan_list)
+            cap_list = await self.get_cap_list(clan_list)
 
             for user, cap_date, cap_str in cap_list:
+                # Send messages to channel reporting the caps
                 await self.bot.cap_ch.send(cap_str)
 
+                # Put caps in database - update records to most recent time
                 async with self.bot.pool.acquire() as con:
-                    rs_id_stmt = f"""
-                        SELECT id FROM rs LEFT JOIN account on rs.id = account.disc_id 
-                        WHERE account.rsn = '{user}'
-                        """
-                    
-                    total_caps_stmt = f"""
-                        SELECT total_caps FROM rs WHERE id = '{rs_id}'
-                    """
-                    total_caps = 0
-                    async for record in con.cursor(total_caps_stmt):
-                        total_caps = record['total_caps']
-                    total_caps += 1
-
-                    exists_stmt = f"""
-                        SELECT 1 FROM rs
-                        SELECT 1 FROM rs LEFT JOIN account on rs.id = account.disc_id 
-                        WHERE account.rsn = '{user}';
-                    """
-                    
-                        UPDATE rs SET last_cap_time = {cap_date}, total_caps = {total_caps} 
-                        WHERE 
-                    if exists:
-                        update
-                        
-
-
-                await con.fetchval(exists_stmt)
-
+                    async with con.transaction():
+                        upsert_stmt = f"""INSERT INTO caps(rsn, last_cap_time) 
+                            VALUES($1, $2) ON CONFLICT ON CONSTRAINT caps_rsn_key 
+                            DO UPDATE SET last_cap_time = $3 WHERE rsn = $4;
+                            """
+                        data = (user, cap_date, cap_date, user)
+                        await con.execute(upsert_stmt)
 
             await asyncio.sleep(600)
 
@@ -231,3 +204,12 @@ async def fetch(session, url):
     async with async_timeout.timeout(10):
         async with session.get(url) as response:
             return await response.text()
+
+async def get_clan_list():
+    """Gets the list of clan members."""
+    clan_parser = MyHTMLParser()
+    async with aiohttp.ClientSession() as session:
+        req_html = await fetch(session, clan_url)
+    clan_parser.feed(req_html)
+    clan_list = clan_parser.data
+    return clan_list

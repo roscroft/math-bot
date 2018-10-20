@@ -13,8 +13,8 @@ async def create_database(reinit, pool=None):
 
     if reinit:
         await conn.execute('''
-            DROP TABLE IF EXISTS account;
-            DROP TABLE IF EXISTS rs;
+            DROP TABLE IF EXISTS account cascade;
+            DROP TABLE IF EXISTS rs cascade;
             DROP TABLE IF EXISTS account_owned;
             DROP TABLE IF EXISTS caps;
             DROP TABLE IF EXISTS xp;
@@ -62,13 +62,12 @@ async def create_account_owned_table(conn):
         )
     ''')
 
-
 async def create_caps_table(conn):
     """Creates caps table for tracking cap information."""
     await conn.execute('''
-        CREATE TABLE IF NOT EXISTS cap(
+        CREATE TABLE IF NOT EXISTS caps(
             id serial,
-            rsn text NOT NULL,
+            rsn text UNIQUE NOT NULL,
             last_cap_time timestamp,
             PRIMARY KEY (id),
             FOREIGN KEY (rsn) REFERENCES rs(rsn)
