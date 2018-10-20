@@ -10,7 +10,7 @@ from discord.ext import commands
 from utils.config import cap_channel
 from utils.config import player_url
 from utils.config import clan_url
-from helpers import MyHTMLParser
+from utils.helpers import MyHTMLParser
 
 class Cap():
     """Defines the cap command and functions."""
@@ -57,54 +57,44 @@ class Cap():
     async def force(self, ctx, *, force_user):
         """Forces a single user to update."""
         out_msg = ""
+        all_stmt = f"""SELECT rsn, last_cap_time FROM caps;"""
+        user_stmt = f"""SELECT rsn, last_cap_time FROM caps WHERE rsn = '{force_user}';"""
         async with self.bot.pool.acquire() as con:
-            async with con.transaction():
-                if force_user == "all":
-                    statement = """SELECT rs.last_cap_time, account.rsn FROM rs LEFT JOIN 
-                                account on rs.id = account.disc_id;"""
-                    async for record in con.cursor(statement):
-                        last_cap = record['last_cap']
-                        rsn = record['rsn']
-                        last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
-                        datetime_list = last_cap.split(" ")
-                        date_report = datetime_list[0]
-                        time_report = datetime_list[1]
-                        out_msg += (f"{rsn} has capped at the citadel on {date_report} "
-                                    f"at {time_report}.\n")
+            if force_user == "all":
+                statment = all_stmt
+            else:
+                statement = user_stmt
+            async for record in con.cursor(statement):
+                rsn = record['rsn']
+                last_cap = record['last_cap_time']
+                if last_cap is not None:
+                    last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
+                    datetime_list = last_cap.split(" ")
+                    date_report = datetime_list[0]
+                    time_report = datetime_list[1]
+                    out_msg += (f"{rsn} has capped at the citadel on {date_report} "
+                                f"at {time_report}.\n")
                 else:
-                    statement = f"""SELECT rs.last_cap_time FROM rs LEFT JOIN account on 
-                                 rs.id = account.disc_id WHERE account.rsn = '{force_user}';"""
-                    async for record in con.cursor(statement):
-                        last_cap = record['last_cap']
-                        if last_cap is not None:
-                            last_cap = last_cap[0]
-                            last_cap = datetime.strftime(last_cap, "%d-%b-%Y %H:%M")
-                            datetime_list = last_cap.split(" ")
-                            date_report = datetime_list[0]
-                            time_report = datetime_list[1]
-                            out_msg = (f"{force_user} has capped at the citadel on {date_report} "
-                                        f"at {time_report}.")
-                        else:
-                            out_msg = f"{force_user} not in database."
+                    out_msg += f"{rsn} not in database.\n"
         await ctx.send(out_msg)
+
+    def is_bot(m):
+        return m.author == self.bot.user
+
+    def is_bot_noncap(m):
+        return is_bot(m) and "capped" not in m.content
 
     @cap.command(name="del")
     @commands.check(cap_handler_and_channel)
     async def _del(self, ctx, which):
         """Deletes specified message."""
         if which == "all":
-            async for msg in ctx.channel.history().filter(lambda m: m.author == self.bot.user):
-                await msg.delete()
+            await ctx.channel.purge(limit=200, check=is_bot)
         elif which == "noncap":
-            async for msg in ctx.channel.history().filter(
-                    lambda m: m.author == self.bot.user).filter(
-                        lambda m: "capped" not in m.content):
-                await msg.delete()
+            await ctx.channel.purge(limit=200, check=is_bot_noncap)
         else:
             before_msg = await ctx.channel.get_message(which)
-            async for msg in ctx.channel.history(before=before_msg).filter(
-                    lambda m: m.author == self.bot.user):
-                await msg.delete()
+            await ctx.channel.purge(limit=200, check=is_bot, before=before_msg)
 
     @cap.command(name="recheck")
     async def recheck(self, ctx):
@@ -124,36 +114,40 @@ class Cap():
         clan_list = clan_parser.data
         return clan_list
 
+    async def get_cap_list(clan_list)
+        cap_list = []
+        for user in clan_list:
+            cap_date = await check_alog(user, "capped")
+            # Add the cap only if it exists, it's been since the last build tick, and
+            # there's no message already in the channel.
+            if cap_date is not None:
+                logging.info(f"Cap date for {user}: {cap_date}")
+                if cap_date < self.bot.last_build_tick:
+                    logging.info("Not reporting cap: before build tick.")
+                else:
+                    cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
+                    datetime_list = cap_date.split(" ")
+                    cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
+                                f" at {datetime_list[1]}.")
+                    cap_msg_list = await self.bot.cap_ch.history().filter(
+                        lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
+                            lambda m, c_s=cap_str: c_s in m).flatten()
+                    if cap_msg_list:
+                        logging.info("Not reporting cap: cap message exists.")
+                    if not cap_msg_list:
+                        cap_list.append((user, cap_date, cap_str))
+        logging.info(cap_list)
+        return cap_list
+
+
     async def report_caps(self):
         """Reports caps."""
         await self.bot.wait_until_ready()
         self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
-            clan_list = await get_clan_list()
-            cap_list = []
             logging.info(f"Last build tick: {self.bot.last_build_tick}")
-            for user in clan_list:
-                cap_date = await check_alog(user, "capped")
-                # Add the cap only if it exists, it's been since the last build tick, and
-                # there's no message already in the channel.
-                if cap_date is not None:
-                    logging.info(f"Cap date for {user}: {cap_date}")
-                    if cap_date < self.bot.last_build_tick:
-                        logging.info("Not reporting cap: before build tick.")
-                    else:
-                        cap_date = datetime.strftime(cap_date, "%d-%b-%Y %H:%M")
-                        datetime_list = cap_date.split(" ")
-                        cap_str = (f"{user} has capped at the citadel on {datetime_list[0]}"
-                                   f" at {datetime_list[1]}.")
-                        cap_msg_list = await self.bot.cap_ch.history().filter(
-                            lambda m: m.author == self.bot.user).map(lambda m: m.content).filter(
-                                lambda m, c_s=cap_str: c_s in m).flatten()
-                        if cap_msg_list:
-                            logging.info("Not reporting cap: cap message exists.")
-                        if not cap_msg_list:
-                            cap_list.append((user, cap_date, cap_str))
-
-            logging.info(cap_list)
+            clan_list = await get_clan_list()
+            cap_list = await get_cap_list(clan_list)
 
             for user, cap_date, cap_str in cap_list:
                 await self.bot.cap_ch.send(cap_str)
