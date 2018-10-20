@@ -64,7 +64,7 @@ class Cap():
                 statement = all_stmt
             else:
                 statement = user_stmt
-            async for record in con.cursor(statement, force_user)
+            async for record in con.cursor(statement, force_user):
                 rsn = record['rsn']
                 last_cap = record['last_cap_time']
                 if last_cap is not None:
@@ -139,6 +139,8 @@ class Cap():
         while not self.bot.is_closed():
             logging.info(f"Last build tick: {self.bot.last_build_tick}")
             clan_list = await get_clan_list()
+            # Make sure all names are in the database prior to adding new cap records
+            await self.update_names(clan_list)
             cap_list = await self.get_cap_list(clan_list)
 
             for user, cap_date, cap_str in cap_list:
@@ -153,9 +155,17 @@ class Cap():
                             DO UPDATE SET last_cap_time = $3 WHERE rsn = $4;
                             """
                         data = (user, cap_date, cap_date, user)
-                        await con.execute(upsert_stmt)
+                        await con.execute(upsert_stmt, data)
 
             await asyncio.sleep(600)
+
+    async def update_names(self, clan_list):
+        """Adds all names from the clan list to the database."""
+        async with self.bot.pool.acquire() as con:
+            async with con.transaction():
+                upsert_stmt = """INSERT INTO name(rsn) VALUES($1) ON CONFLICT (rsn) DO NOTHING;
+                """
+                await con.executemany(upsert_stmt, clan_list)
 
     async def get_build_tick(self):
         """Returns the most recent build tick - Wednesday 1600 UTC"""
