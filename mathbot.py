@@ -3,8 +3,8 @@ import os
 import sys
 import traceback
 import logging
-import config
 from discord.ext import commands
+from utils import config
 
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""

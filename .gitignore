@@ -1,5 +1,6 @@
 __pycache__/
 resources/
+test/
 subs/markov/resources/
 config.py
 __init__.py
@@ -10,5 +11,3 @@ __init__.py
 *.log
 *.db
 !requirements.txt
-testbot.py
-testlauncher.py

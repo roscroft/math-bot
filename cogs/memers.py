@@ -88,12 +88,6 @@ def list_user_adds(filename, user, is_img):
     out_msg = f"```{out_msg}```"
     return out_msg
 
-def get_mod_ids():
-    """Returns a list of all mod ids."""
-    with open(MODS_FILE, 'r') as txt_file:
-        mod_ids = txt_file.read().splitlines()
-    return mod_ids
-
 class Memers():
     """Defines the cap command and functions."""
 
@@ -110,18 +104,12 @@ class Memers():
         In reality this just checks if a subcommand is being invoked.
         """
         if ctx.invoked_subcommand is None:
-            await ctx.send('No, {0.subcommand_passed} is not cool'.format(ctx))
+            await ctx.send(f"No, {ctx.subcommand_passed} is not cool.")
 
     @cool.command(name='bot')
     async def _bot(self, ctx):
         """Is the bot cool?"""
         await ctx.send('Yes, the bot is cool.')
-
-    @commands.command()
-    async def markdonalds(self, ctx):
-        """Lets the command markdonalds return the mRage emoji."""
-        mrage = self.bot.get_emoji(413441118102093824)
-        await ctx.send(f"{mrage}")
 
     @commands.command()
     # @commands.is_owner()
@@ -294,137 +282,43 @@ class Memers():
             for mod_id, mod_name in mods.items():
                 out_msg += f"Mod: {mod_name}\n"
         out_msg = f"```{out_msg}```"
-        return out_msg
+        await ctx.send(out_msg)
 
     @mod.command(alias="add")
     @commands.is_owner()
     async def modadd(self, ctx, new_mod_id):
         """Adds a new mod."""
-        new_mod_name = ctx.
+        new_mod = self.bot.get_user(new_mod_id)
+        new_mod_name = new_mod.name
         out_msg = ""
         with open(f"./resources/mods.json", "r+") as mod_file:
             mods = json.load(mod_file)
         if new_mod in mods:
-            out_msg = "{new_mod}
-
-
-
-def add_to_json(filename, call, response, user, is_img):
-    """Adds a record to the given json file."""
-    with open(f"./resources/{filename}", "r+") as response_file:
-        responses = json.load(response_file)
-    can_submit = check_votes(user)
-    if can_submit:
-        if call in responses:
-            out_msg = "This call already exists. Please use a different one."
+            out_msg = f"{new_mod_name} is already a mod!"
         else:
-            responses[call] = {}
-            responses[call]["response"] = response
-            responses[call]["user"] = user
-            with open(f"./resources/{filename}", "w") as response_file:
-                json.dump(responses, response_file)
-            if not is_img:
-                out_msg = f"{user} added call/response pair '{call}' -> '{response}'!"
-            else:
-                out_msg = f"{user} added image call/response pair {call} -> <{response}>!"
-    else:
-        out_msg = "You are banned from submitting."
-    return out_msg
-
-def remove_from_json(filename, call):
-    """Removes the given record from the given json file."""
-    with open(f"./resources/{filename}", "r+") as response_file:
-        responses = json.load(response_file)
-    if call in responses:
-        response = responses[call]["response"]
-        user = responses[call]["user"]
-        responses.pop(call)
-        with open(f"./resources/{filename}", "w") as response_file:
-            json.dump(responses, response_file)
-        return (response, user)
-    return (None, None)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        
-    @commands.group(invoke_without_command=True)
-    @commands.is_owner()
-    async def mod(self, ctx, *args):
-        """Adds/Removes/Shows mod privileges to/from/of a user. Bot owner only!"""
-        if ctx.invoked_subcommand is None:
-            out_msg = "**Current Mods**:\n"
-            for userid in get_mod_ids():
-                try:
-                    mod_member = ctx.guild.get_member(int(userid))
-                    out_msg += f'{mod_member.name}\n'
-                except ValueError:
-                    out_msg += 'Unknown User\n'
-
-    @mod.command(alias="add")
-    @commands.is_owner()
-    async def modadd(self, ctx, *args):
-        with open(MODS_FILE, 'a+') as txt_file:
-            txt_file.write(f'{targetid}\n')
-        out = f'{name.title()} added as mod!'
+            mods[new_mod_id] = new_mod_name
+            with open(f"./resources/mods.json", "w") as mod_file:
+                json.dump(mods, mod_file)
+            out_msg = f"{new_mod_name} added to the mod list."
+        await ctx.send(out_msg)
 
     @mod.command(alias="rm")
     @commands.is_owner()
-    async def modrm(self, ctx, *args):
-        mod_ids = [userid for userid in get_mod_ids() if userid != str(targetid)]
-        with open(MODS_FILE, 'w+') as txt_file:
-            txt_file.write('\n'.join(mod_ids) + '\n')
-        out = f'{name.title()} removed as mod!'
-
-
-
-        elif len(args) == 2:
-            command, name = args
-            count = 0
-            for member in ctx.guild.members:
-                if name.lower() == member.name.lower():
-                    targetid = member.id
-                    count += 1
-            if count == 0:
-                out = f'Error: name {name} not found in server.'
-            elif count > 1:
-                out = f'Error: string {name} refers to more than one person.'
-            else:
-                out = f'Error: invalid syntax. Command must be in the form `$mods [add/remove] [username]` or '\
-                      f'`$mods`.'
+    async def modrm(self, ctx, mod_id):
+        """Removes a current mod."""
+        mod = self.bot.get_user(mod_id)
+        mod_name = mod.na,e
+        out_msg = ""
+        with open(f"./resources/mods.json", "r+") as mod_file:
+            mods = json.load(mod_file)
+        if mod not in mods:
+            out_msg = f"{mod_name} is not a mod!"
         else:
-            out = f'Error: invalid syntax. Command must be in the form `$mods [add/remove] [username]` or ' \
-                  f'`$mods`.'
-        await ctx.send(out)
+            mods.pop(mod_id)
+            with open(f"./resources/mods.json", "w") as mod_file:
+                json.dump(mods, mod_file)
+            out_msg = f"{mod_name} removed from the mod list."
+        await ctx.send(out_msg)
 
     async def choose_victim(self):
         """Chooses a victim to add reactions to."""
