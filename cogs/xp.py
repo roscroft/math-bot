@@ -9,7 +9,7 @@ from sqlalchemy import desc
 from config import cap_channel
 from config import player_url
 from config import clan_url
-from dbs import MyHTMLParser, SESSION, XP
+from helpers import get_clan_list, fetch
 
 class Stats():
     """Defines the cap command and functions."""
@@ -19,11 +19,8 @@ class Stats():
         self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
     @commands.group(invoke_without_command=True)
-    async def xp(self, *args)
-        
-
-
-
+    async def xp(self, *args):
+        pass
 
     async def skill(self, ctx, username, skill):
         """Returns xp in the requested skill."""
@@ -64,26 +61,67 @@ class Stats():
         if ctx.invoked_subcommand is None:
             await ctx.send("Try '$stat help'.")
 
+    async def get_xp_list(self, clan_list):
+        """Returns a dictionary of all users and their xp and level values."""
+        xp_list = []
+        for user in clan_list:
+            xp_dict = await check_xp(user)
+
+
+
+
     async def report_xp(self):
         """Adds all xp records to databse."""
         await self.bot.wait_until_ready()
         self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
-            clan_parser = MyHTMLParser()
-            async with aiohttp.ClientSession() as session:
-                req_html = await fetch(session, clan_url)
-            clan_parser.feed(req_html)
-            clan_list = clan_parser.data
-            add_list = []
+            logging.info("Updating xp records...")
+            clan_list = await get_clan_list
+            await self.update_name(clan_list)
             for user in clan_list:
-                xp_record = check_xp(user)
-                if xp_record is not None:
-                    add_list.append(xp_record)
-            SESSION.add_all(add_list)
-            SESSION.commit()
+                xp_dict = await check_xp(user)
+                
 
             await asyncio.sleep(86400)
 
+
+    async def report_caps(self, user=()):
+        """Reports caps."""
+        await self.bot.wait_until_ready()
+        self.bot.cap_ch = self.bot.get_channel(cap_channel)
+        while not self.bot.is_closed():
+            logging.info(f"Last build tick: {self.bot.last_build_tick}")
+            if not user:
+                clan_list = await get_clan_list()
+            else:
+                clan_list = user
+            # Make sure all names are in the database prior to adding new cap records
+            await self.update_names(clan_list)
+            cap_list = await self.get_cap_list(clan_list)
+
+            for name, cap_date, cap_str in cap_list:
+                # Send messages to channel reporting the caps
+                await self.bot.cap_ch.send(cap_str)
+
+                # Put caps in database - update records to most recent time
+                async with self.bot.pool.acquire() as con:
+                    async with con.transaction():
+                        upsert_stmt = f"""INSERT INTO caps(rsn, last_cap_time) 
+                            VALUES($1, $2) ON CONFLICT ON CONSTRAINT caps_rsn_key 
+                            DO UPDATE SET last_cap_time = EXCLUDED.last_cap_time;
+                            """
+                        await con.execute(upsert_stmt, name, cap_date)
+
+            await asyncio.sleep(600)
+
+    async def update_names(self, clan_list):
+        """Adds all names from the clan list to the database."""
+        async with self.bot.pool.acquire() as con:
+            async with con.transaction():
+                upsert_stmt = """INSERT INTO rs(rsn) VALUES($1) ON CONFLICT (rsn) DO NOTHING;
+                """
+                names = [(name,) for name in clan_list]
+                await con.executemany(upsert_stmt, names)
 def setup(bot):
     """Adds the cog to the bot."""
     bot.add_cog(Stats(bot))
@@ -114,11 +152,4 @@ async def check_xp(username):
         xp_dict[f"{skill_name}_level"] = level
         xp_dict[f"{skill_name}_xp"] = xp
 
-    xp_record = XP(**xp_dict)
-    return xp_record
-
-async def fetch(session, url):
-    """Fetches a web request asynchronously."""
-    async with async_timeout.timeout(10):
-        async with session.get(url) as response:
-            return await response.text()
+    return xp_dict
