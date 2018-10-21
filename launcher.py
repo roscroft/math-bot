@@ -6,7 +6,6 @@ import asyncio
 import asyncpg
 from mathbot import MathBot
 from utils import config
-from utils.dbs import create_database
 
 @contextlib.contextmanager
 def setup_logging():
@@ -43,8 +42,6 @@ def run_bot(db_reinit):
             password=config.postgre_pwd, command_timeout=60, loop=loop))
     except Exception:
         log.exception("Could not set up PostgreSQL. Exiting.")
-
-    loop.run_until_complete(create_database(pool, db_reinit))
 
     bot = MathBot()
     bot.pool = pool

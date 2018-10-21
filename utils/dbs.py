@@ -1,8 +1,8 @@
 #!/usr/bin/python3.6
 """Creates all tables in the database."""
-from config import db_name
 import asyncio
 import asyncpg
+from utils.config import db_name
 
 async def create_database(reinit, pool=None):
     """Calls the individual table creation functions."""
@@ -19,11 +19,11 @@ async def create_database(reinit, pool=None):
             DROP TABLE IF EXISTS caps;
             DROP TABLE IF EXISTS xp;
         ''')
-    await create_account_table(conn)
-    await create_rs_table(conn)
-    await create_account_owned_table(conn)
-    await create_caps_table(conn)
-    await create_xp_table(conn)
+        await create_account_table(conn)
+        await create_rs_table(conn)
+        await create_account_owned_table(conn)
+        await create_caps_table(conn)
+        await create_xp_table(conn)
 
 async def create_account_table(conn):
     """Creates account table for unique account information."""
