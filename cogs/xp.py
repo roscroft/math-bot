@@ -3,15 +3,13 @@ from datetime import datetime
 import asyncio
 import json
 import aiohttp
-import async_timeout
 from discord.ext import commands
 from sqlalchemy import desc
-from config import cap_channel
-from config import player_url
-from config import clan_url
-from helpers import get_clan_list, fetch
+from utils.config import cap_channel
+from utils.config import player_url
+from utils.helpers import get_clan_list
 
-class Stats():
+class XP():
     """Defines the cap command and functions."""
 
     def __init__(self, bot):
@@ -20,7 +18,20 @@ class Stats():
 
     @commands.group(invoke_without_command=True)
     async def xp(self, *args):
-        pass
+        if ctx.invoked_subcommand is None:
+            pass
+
+    @xp.command(name="skills")
+        """Sends a direct message containing skill nicknames."""
+        with open(f"./resources/skills_alias.json", "r+") as skills_file:
+            skill_names = json.load(skills_file)
+        out_msg = "List of skills and their aliases:\n```"
+        for alias, skill in skill_names.items():
+            out_msg += f"{skill.title()}: {alias}\n"
+        out_msg = out_msg[:-1] + "```"
+        await ctx.author.send(out_msg)
+
+    
 
     async def skill(self, ctx, username, skill):
         """Returns xp in the requested skill."""
@@ -43,17 +54,6 @@ class Stats():
                 skill_xp = f"{skill_xp[:-1]}.{skill_xp[-1]}"
                 out_msg = f"{username} has {skill_level} {skill_name.title()} with {skill_xp} XP."
         await ctx.send(out_msg)
-
-    @commands.command(name="skilllist")
-    async def skilllist(self, ctx):
-        """Direct messages a user with a list of skill aliases."""
-        with open(f"./resources/skills_alias.json", "r+") as skills_file:
-            skill_names = json.load(skills_file)
-        out_msg = "List of skills and their aliases:\n```"
-        for alias, skill in skill_names.items():
-            out_msg += f"{skill.title()}: {alias}\n"
-        out_msg = out_msg[:-1] + "```"
-        await ctx.author.send(out_msg)
 
     @commands.group(invoke_without_command=True)
     async def stat(self, ctx):

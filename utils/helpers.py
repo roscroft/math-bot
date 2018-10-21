@@ -1,5 +1,8 @@
 """Defines helper functions used across classes."""
 from html.parser import HTMLParser
+import async_timeout
+import aiohttp
+from utils.config import clan_url
 
 class MyHTMLParser(HTMLParser):
     """Builds an HTML parser."""

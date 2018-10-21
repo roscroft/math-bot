@@ -7,8 +7,18 @@ import discord
 from discord.ext import commands
 from utils import config
 
-MODS_FILE = './resources/mods.txt'
 MAX_VOTES = 10
+
+def get_mods():
+    """Returns a list of all mods."""
+    mods_file = "./resources/mods.json"
+    with open(mods_file, "r+") as mod_file:
+        mods = json.load(mod_file)
+    return mods
+
+async def is_mod(ctx):
+    """Checks if the user is a mod."""
+    return ctx.author.id in get_mods()
 
 def check_votes(user):
     """Checks if a user is banned from submitting."""
@@ -125,16 +135,16 @@ class Memers():
             await ctx.send(out_msg)
 
     @commands.command(name="rm", hidden=True)
+    @commands.check(is_mod)
     async def remove(self, ctx, call):
         """Removes a call/response pair. Bot mods only!"""
-        if str(ctx.author.id) in get_mod_ids():
-            filename = "responses.json"
-            (user, response) = remove_from_json(filename, call)
-            if response is not None:
-                out_msg = f"Removed {user}'s text call/response pair '{call}' -> '{response}'!"
-            else:
-                out_msg = f"Text call '{call}' not found."
-            await ctx.author.send(out_msg)
+        filename = "responses.json"
+        (user, response) = remove_from_json(filename, call)
+        if response is not None:
+            out_msg = f"Removed {user}'s text call/response pair '{call}' -> '{response}'!"
+        else:
+            out_msg = f"Text call '{call}' not found."
+        await ctx.author.send(out_msg)
 
     @commands.command()
     async def calls(self, ctx):
@@ -175,16 +185,16 @@ class Memers():
         await ctx.send(out_msg)
 
     @img.command(name="rm")
+    @commands.check(is_mod)
     async def _remove(self, ctx, call):
         """Removes an image response. Bot mods only!"""
-        if str(ctx.author.id) in get_mod_ids():
-            filename = "image_responses.json"
-            image_url = remove_from_json(filename, call)
-            if image_url is not None:
-                out_msg = f"Removed image call/response pair {call} -> <{image_url}>!"
-            else:
-                out_msg = f"Image call {call} not found."
-            await ctx.author.send(out_msg)
+        filename = "image_responses.json"
+        image_url = remove_from_json(filename, call)
+        if image_url is not None:
+            out_msg = f"Removed image call/response pair {call} -> <{image_url}>!"
+        else:
+            out_msg = f"Image call {call} not found."
+        await ctx.author.send(out_msg)
 
     @img.command(name="calls")
     async def _calls(self, ctx):
@@ -281,10 +291,9 @@ class Memers():
     async def modlist(self, ctx):
         """Lists all mods on the server."""
         out_msg = ""
-        with open(f"./resources/mods.json", "r+") as mod_file:
-            mods = json.load(mod_file)
-            for mod_id, mod_name in mods.items():
-                out_msg += f"Mod: {mod_name}\n"
+        mods = get_mods()
+        for _, mod_name in mods.items():
+            out_msg += f"Mod: {mod_name}\n"
         out_msg = f"```{out_msg}```"
         await ctx.send(out_msg)
 
@@ -295,8 +304,7 @@ class Memers():
         new_mod = self.bot.get_user(new_mod_id)
         new_mod_name = new_mod.name
         out_msg = ""
-        with open(f"./resources/mods.json", "r+") as mod_file:
-            mods = json.load(mod_file)
+        mods = get_mods()
         if new_mod in mods:
             out_msg = f"{new_mod_name} is already a mod!"
         else:
@@ -311,10 +319,9 @@ class Memers():
     async def modrm(self, ctx, mod_id):
         """Removes a current mod."""
         mod = self.bot.get_user(mod_id)
-        mod_name = mod.na,e
+        mod_name = mod.name
         out_msg = ""
-        with open(f"./resources/mods.json", "r+") as mod_file:
-            mods = json.load(mod_file)
+        mods = get_mods()
         if mod not in mods:
             out_msg = f"{mod_name} is not a mod!"
         else:

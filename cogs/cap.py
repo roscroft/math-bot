@@ -4,13 +4,10 @@ from datetime import timedelta
 import logging
 import asyncio
 import aiohttp
-# import asyncpg
-import async_timeout
 from discord.ext import commands
 from utils.config import cap_channel
 from utils.config import player_url
-from utils.config import clan_url
-from utils.helpers import MyHTMLParser, get_clan_list
+from utils.helpers import get_clan_list
 
 async def check_alog(username, search_string):
     """Returns date if search string is in user history, or if it has previously been recorded."""
