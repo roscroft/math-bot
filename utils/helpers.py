@@ -33,3 +33,11 @@ async def get_clan_list():
     clan_parser.feed(req_html)
     clan_list = clan_parser.data
     return clan_list
+
+async def update_names(con, clan_list):
+    """Adds all names from the clan list to the database."""
+    async with con.transaction():
+        upsert_stmt = """INSERT INTO rs(rsn) VALUES($1) ON CONFLICT (rsn) DO NOTHING;
+        """
+        names = [(name,) for name in clan_list]
+        await con.executemany(upsert_stmt, names)
