@@ -1,4 +1,4 @@
-"""Defines the functions used for handling citadel caps."""
+"""Defines the functions used for gathering and reporting xp."""
 from datetime import datetime
 import asyncio
 import json
@@ -7,6 +7,19 @@ import aiohttp
 from discord.ext import commands
 from utils.config import player_url
 from utils.helpers import get_clan_list, update_names
+
+def get_skill_dict():
+    """Returns the dictionary containing all skills and ids."""
+    with open(f"./resources/skills.json", "r+") as skills_file:
+        skill_names = json.load(skills_file)
+    return skill_names
+
+def get_skill_info(argument):
+    """Converts a skill name to a dictionary containing the full skill name and id."""
+    skill_names = get_skill_dict()
+    skills = {**skill_names["nicknames"], **skill_names["fullnames"]}
+    skill_info = skills.get(argument, None)
+    return skill_info
 
 async def rsn_from_id(con, member):
     """Retrieves the most current main rsn given a player's discord id.
@@ -28,22 +41,7 @@ class XP():
 
     def __init__(self, bot):
         self.bot = bot
-        self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
-
-    @staticmethod
-    def get_skill_dict():
-        """Returns the dictionary containing all skills and ids."""
-        with open(f"./resources/skills.json", "r+") as skills_file:
-            skill_names = json.load(skills_file)
-        return skill_names
-
-    @staticmethod
-    def get_skill_info(skill_name):
-        """Converts a skill name to a dictionary containing the full skill name and id."""
-        skill_names = XP.get_skill_dict()
-        skills = {**skill_names["nicknames"], **skill_names["fullnames"]}
-        skill_info = skills.get(skill_name, None)
-        return skill_info
+        # self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
     class Player():
         """Defines the Player class, used to capture either a Discord user or rsn."""
@@ -61,6 +59,7 @@ class XP():
                     return f"Error: Player {player} not found in database."
                 return cls(rsn)
             except commands.BadArgument:
+                print(player)
                 async with ctx.bot.pool.acquire() as con:
                     exists = rsn_exists(con, player)
                 if not exists:
@@ -68,7 +67,7 @@ class XP():
                 return cls(player)
 
     @commands.group(invoke_without_command=True)
-    async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
+    async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player]=None):
         """Handles the xp commands - allows users to retrieve level and xp values for themselves
         and others."""
         if ctx.invoked_subcommand is None:
@@ -83,19 +82,19 @@ class XP():
                     actual_players = (rsn_from_id(con, ctx.author),)
             else:
                 for player in players:
-                    if player.startswith("Error:"):
+                    if player.rsn.startswith("Error:"):
                         await ctx.send(player)
                     else:
-                        actual_players += player
-                actual_players = tuple(actual_players)
+                        actual_players += (player.rsn,)
+            print(f"Players: {actual_players}")
             # Now that we have a tuple of the valid players from the command, we can retrieve xp
             # and skill values for each player in the specified skill.
             xp_list = []
             for player in players:
                 async with self.bot.pool.acquire() as con:
                     xp_stmt = """SELECT skills -> $1 ->> 'level' AS level, skills -> $1 ->> 'xp' AS 
-                    xp FROM xp, skills -> $1 ->> 'rank' AS rank, WHERE rsn = $2 ORDER BY dtg DESC 
-                    LIMIT 1;"""
+                    xp FROM xp, skills -> $1 ->> 'rank' AS rank FROM xp WHERE rsn = $2 ORDER BY dtg 
+                    DESC LIMIT 1;"""
                     xp_res = await con.fetchrow(xp_stmt, skill_id, player)
                     xp_list += [player, xp_res["level"], xp_res["xp"], xp_res["rank"]]
 
@@ -108,7 +107,7 @@ class XP():
     @xp.command(name="list")
     async def list(self, ctx):
         """Sends a direct message containing skill nicknames."""
-        skill_names = XP.get_skill_dict()
+        skill_names = get_skill_dict()
         out_msg = "List of skills and their aliases:\n```"
         nicknames = skill_names["nicknames"]
         for nickname, skill_info in nicknames.items():
@@ -116,25 +115,35 @@ class XP():
         out_msg = out_msg[:-1] + "```"
         await ctx.author.send(out_msg)
 
+    @xp.command(name="check")
+    @commands.is_owner()
+    async def check(self, ctx):
+        """Rechecks xp and adds new records."""
+        await self.report_xp()
+
     async def report_xp(self):
         """Adds all xp records to databse."""
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
             logging.info("Updating xp records...")
             clan_list = await get_clan_list()
-            await update_names(clan_list)
+            async with self.bot.pool.acquire() as con:
+                await update_names(con, clan_list)
+            print(clan_list)
             for user in clan_list:
+                print(user)
                 xp_dict = await check_xp(user)
-                async with self.bot.pool.acquire() as con:
-                    await con.set_type_codec(
-                        'json',
-                        encoder=json.dumps,
-                        decoder=json.loads,
-                        schema='pg_catalog'
-                    )
-                    async with con.transaction():
-                        xp_stmt = """INSERT INTO xp(rsn, dtg, skills) VALUES($1, $2, $3::json)"""
-                        await con.execute(xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
+                if xp_dict is not None:
+                    async with self.bot.pool.acquire() as con:
+                        await con.set_type_codec(
+                            'json',
+                            encoder=json.dumps,
+                            decoder=json.loads,
+                            schema='pg_catalog'
+                        )
+                        async with con.transaction():
+                            xp_stmt = """INSERT INTO xp(rsn, dtg, skills) VALUES($1, $2, $3::json)"""
+                            await con.execute(xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
 
             await asyncio.sleep(86400)
 
@@ -157,7 +166,7 @@ async def check_xp(username):
 
     xp_dict = {}
     xp_dict["rsn"] = name
-    xp_dict["dtg"] = datetime.datetime.now()
+    xp_dict["dtg"] = datetime.now()
     xp_values = {}
     for skillinfo in skillvalues:
         level = skillinfo["level"]

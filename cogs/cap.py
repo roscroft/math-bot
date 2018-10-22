@@ -85,7 +85,8 @@ class Cap():
                 statement = all_stmt
             else:
                 statement = user_stmt
-            async for record in con.cursor(statement, force_user):
+            records = await con.fetch(statement, force_user)
+            for record in records:
                 rsn = record['rsn']
                 last_cap = record['last_cap_time']
                 if last_cap is not None:
@@ -96,7 +97,6 @@ class Cap():
                 else:
                     out_msg += f"{rsn} not in database.\n"
         await ctx.send(out_msg)
-
 
     @cap.command(name="del")
     @commands.check(cap_handler_and_channel)
