@@ -21,18 +21,19 @@ def get_skill_info(argument):
     skill_info = skills.get(argument, None)
     return skill_info
 
-async def rsn_from_id(con, member):
+async def rsn_from_id(con, disc_id):
     """Retrieves the most current main rsn given a player's discord id.
     Returns None is player is not registered with an rsn."""
     rsn_stmt = """SELECT rsn FROM account_owned WHERE disc_id = $1 AND is_main = 1 
             AND end_dtg IS NOT NULL ORDER BY end_dtg DESC LIMIT 1;
             """
-    rsn = await con.fetchval(rsn_stmt, member.id)
+    rsn = await con.fetchval(rsn_stmt, str(disc_id))
+    print(rsn)
     return rsn
 
 async def rsn_exists(con, player):
     """Checks if a given rsn is present in the database (clan members only)."""
-    rsn_stmt = """SELECT EXISTS(SELECT 1 FROM rs WHERE rsn = $1"""
+    rsn_stmt = """SELECT EXISTS(SELECT 1 FROM rs WHERE rsn = $1)"""
     exists = await con.fetchval(rsn_stmt, player)
     return exists
 
@@ -53,17 +54,19 @@ class XP():
             """Converts a Discord user to a valid rsn, or confirms an rsn."""
             try:
                 member = await commands.MemberConverter().convert(ctx, player)
+                print(f"Member: {member}")
                 async with ctx.bot.pool.acquire() as con:
-                    rsn = rsn_from_id(con, member)
+                    rsn = await rsn_from_id(con, member.id)
                 if rsn is None:
-                    return f"Error: Player {player} not found in database."
+                    await ctx.send(f"Error: Player {player} not found in database.")
+                    return None
                 return cls(rsn)
             except commands.BadArgument:
-                print(player)
                 async with ctx.bot.pool.acquire() as con:
-                    exists = rsn_exists(con, player)
+                    exists = await rsn_exists(con, player)
                 if not exists:
-                    return f"Error: Player {player} not found in database."
+                    await ctx.send(f"Error: Player {player} not found in database.")
+                    return None
                 return cls(player)
 
     @commands.group(invoke_without_command=True)
@@ -79,29 +82,36 @@ class XP():
             actual_players = []
             if players is None:
                 async with self.bot.pool.acquire() as con:
-                    actual_players = (rsn_from_id(con, ctx.author),)
+                    print(ctx.author.id)
+                    username = await rsn_from_id(con, ctx.author.id)
+                    actual_players = (username,)
             else:
                 for player in players:
+                    print(player.rsn)
                     if player.rsn.startswith("Error:"):
                         await ctx.send(player)
                     else:
                         actual_players += (player.rsn,)
-            print(f"Players: {actual_players}")
+            players = actual_players
             # Now that we have a tuple of the valid players from the command, we can retrieve xp
             # and skill values for each player in the specified skill.
             xp_list = []
             for player in players:
                 async with self.bot.pool.acquire() as con:
-                    xp_stmt = """SELECT skills -> $1 ->> 'level' AS level, skills -> $1 ->> 'xp' AS 
-                    xp FROM xp, skills -> $1 ->> 'rank' AS rank FROM xp WHERE rsn = $2 ORDER BY dtg 
-                    DESC LIMIT 1;"""
+                    xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level, 
+                              (skills -> $1 ->> 'xp')::integer AS xp, 
+                              (skills -> $1 ->> 'rank')::integer AS rank 
+                              FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
                     xp_res = await con.fetchrow(xp_stmt, skill_id, player)
-                    xp_list += [player, xp_res["level"], xp_res["xp"], xp_res["rank"]]
+                    if xp_res is None:
+                        await ctx.send(f"Player {player} not found in database.")
+                    else:
+                        xp_list.append([player, xp_res["level"], xp_res["xp"], xp_res["rank"]])
 
             xp_list = sorted(xp_list, key=lambda x: x[3])
-            out_msg = f"{skill}:\n"
+            out_msg = f"{skill.title()}:\n"
             for num, rec in enumerate(xp_list):
-                out_msg += f"{num}. {rec[0]} has level {rec[1]} {skill}, with {rec[2]} xp.\n"
+                out_msg += f"{num+1}. {rec[0]} has level {rec[1]} {skill}, with {rec[2]} xp.\n"
             await ctx.send(f"```{out_msg}```")
 
     @xp.command(name="list")

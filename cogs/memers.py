@@ -14,6 +14,7 @@ def get_mods():
     mods_file = "./resources/mods.json"
     with open(mods_file, "r+") as mod_file:
         mods = json.load(mod_file)
+        print(mods)
     return mods
 
 async def is_mod(ctx):
@@ -279,12 +280,11 @@ class Memers():
         self.bot.pct = float(pct)/100.0
         await ctx.send(f"New reaction percentage chosen: {self.bot.pct}")
 
-    @commands.group(invoke_without_command=True)
+    @commands.group()
     @commands.is_owner()
-    async def mod(self, ctx, *args):
+    async def mod(self, ctx, *, args):
         """Provides the ability to add and remove bot moderators."""
-        if ctx.invoked_subcommand is None:
-            pass
+        pass
 
     @mod.command(alias="list")
     @commands.is_owner()
@@ -301,6 +301,7 @@ class Memers():
     @commands.is_owner()
     async def modadd(self, ctx, new_mod_id):
         """Adds a new mod."""
+        print(new_mod_id)
         new_mod = self.bot.get_user(new_mod_id)
         new_mod_name = new_mod.name
         out_msg = ""
