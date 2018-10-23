@@ -31,10 +31,10 @@ async def rsn_from_id(con, disc_id):
     print(rsn)
     return rsn
 
-async def rsn_exists(con, player):
+async def rsn_exists(con, rsn):
     """Checks if a given rsn is present in the database (clan members only)."""
     rsn_stmt = """SELECT EXISTS(SELECT 1 FROM rs WHERE rsn = $1)"""
-    exists = await con.fetchval(rsn_stmt, player)
+    exists = await con.fetchval(rsn_stmt, rsn)
     return exists
 
 class XP():
