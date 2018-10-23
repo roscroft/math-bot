@@ -9,17 +9,9 @@ from utils import config
 
 MAX_VOTES = 10
 
-def get_mods():
-    """Returns a list of all mods."""
-    mods_file = "./resources/mods.json"
-    with open(mods_file, "r+") as mod_file:
-        mods = json.load(mod_file)
-        print(mods)
-    return mods
-
 async def is_mod(ctx):
     """Checks if the user is a mod."""
-    return ctx.author.id in get_mods()
+    return str(ctx.author.id) in Memers.get_mods()
 
 def check_votes(user):
     """Checks if a user is banned from submitting."""
@@ -108,6 +100,14 @@ class Memers():
         self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
         self.bot.pct = 0.10
         self.bot.max_votes = MAX_VOTES
+
+    @staticmethod
+    def get_mods():
+        """Returns a list of all mods."""
+        mods_file = "./resources/mods.json"
+        with open(mods_file, "r+") as mod_file:
+            mods = json.load(mod_file)
+        return mods
 
     @commands.group()
     async def cool(self, ctx):
@@ -282,31 +282,30 @@ class Memers():
 
     @commands.group()
     @commands.is_owner()
-    async def mod(self, ctx, *, args):
+    async def mod(self, ctx):
         """Provides the ability to add and remove bot moderators."""
         pass
 
-    @mod.command(alias="list")
+    @mod.command(name="list")
     @commands.is_owner()
     async def modlist(self, ctx):
         """Lists all mods on the server."""
         out_msg = ""
-        mods = get_mods()
+        mods = Memers.get_mods()
         for _, mod_name in mods.items():
             out_msg += f"Mod: {mod_name}\n"
         out_msg = f"```{out_msg}```"
         await ctx.send(out_msg)
 
-    @mod.command(alias="add")
+    @mod.command(name="add")
     @commands.is_owner()
-    async def modadd(self, ctx, new_mod_id):
+    async def modadd(self, ctx, new_mod: discord.Member):
         """Adds a new mod."""
-        print(new_mod_id)
-        new_mod = self.bot.get_user(new_mod_id)
         new_mod_name = new_mod.name
+        new_mod_id = str(new_mod.id)
         out_msg = ""
-        mods = get_mods()
-        if new_mod in mods:
+        mods = Memers.get_mods()
+        if new_mod_id in mods:
             out_msg = f"{new_mod_name} is already a mod!"
         else:
             mods[new_mod_id] = new_mod_name
@@ -315,21 +314,21 @@ class Memers():
             out_msg = f"{new_mod_name} added to the mod list."
         await ctx.send(out_msg)
 
-    @mod.command(alias="rm")
+    @mod.command(name="rm")
     @commands.is_owner()
-    async def modrm(self, ctx, mod_id):
+    async def modrm(self, ctx, old_mod: discord.Member):
         """Removes a current mod."""
-        mod = self.bot.get_user(mod_id)
-        mod_name = mod.name
+        old_mod_name = old_mod.name
+        old_mod_id = str(old_mod.id)
         out_msg = ""
-        mods = get_mods()
-        if mod not in mods:
-            out_msg = f"{mod_name} is not a mod!"
+        mods = Memers.get_mods()
+        if old_mod_id not in mods:
+            out_msg = f"{old_mod_name} is not a mod!"
         else:
-            mods.pop(mod_id)
+            mods.pop(old_mod_id)
             with open(f"./resources/mods.json", "w") as mod_file:
                 json.dump(mods, mod_file)
-            out_msg = f"{mod_name} removed from the mod list."
+            out_msg = f"{old_mod_name} removed from the mod list."
         await ctx.send(out_msg)
 
     async def choose_victim(self):
