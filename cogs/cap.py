@@ -4,13 +4,10 @@ from datetime import timedelta
 import logging
 import asyncio
 import aiohttp
-# import asyncpg
-import async_timeout
 from discord.ext import commands
 from utils.config import cap_channel
 from utils.config import player_url
-from utils.config import clan_url
-from utils.helpers import MyHTMLParser
+from utils.helpers import get_clan_list
 
 async def check_alog(username, search_string):
     """Returns date if search string is in user history, or if it has previously been recorded."""
@@ -30,21 +27,6 @@ async def check_alog(username, search_string):
             db_date = datetime.strptime(cap_date, "%d-%b-%Y %H:%M")
             return db_date
     return None
-
-async def fetch(session, url):
-    """Fetches a web request asynchronously."""
-    async with async_timeout.timeout(10):
-        async with session.get(url) as response:
-            return await response.text()
-
-async def get_clan_list():
-    """Gets the list of clan members."""
-    clan_parser = MyHTMLParser()
-    async with aiohttp.ClientSession() as session:
-        req_html = await fetch(session, clan_url)
-    clan_parser.feed(req_html)
-    clan_list = clan_parser.data
-    return clan_list
 
 async def in_cap_channel(ctx):
     """Checks if the context channel is the cap channel."""
@@ -88,11 +70,7 @@ class Cap():
     @cap.command()
     async def clan(self, ctx):
         """Returns the number of people in the clan."""
-        clan_parser = MyHTMLParser()
-        async with aiohttp.ClientSession() as session:
-            req_html = await fetch(session, clan_url)
-        clan_parser.feed(req_html)
-        clan_list = clan_parser.data
+        clan_list = await get_clan_list
         await ctx.send(len(clan_list))
 
     @cap.command()

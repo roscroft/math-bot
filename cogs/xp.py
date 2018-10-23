@@ -1,92 +1,165 @@
-"""Defines the functions used for handling citadel caps."""
+"""Defines the functions used for gathering and reporting xp."""
 from datetime import datetime
 import asyncio
 import json
+import logging
 import aiohttp
-import async_timeout
 from discord.ext import commands
-from sqlalchemy import desc
-from config import cap_channel
-from config import player_url
-from config import clan_url
-from dbs import MyHTMLParser, SESSION, XP
+from utils.config import player_url
+from utils.helpers import get_clan_list, update_names
 
-class Stats():
+def get_skill_dict():
+    """Returns the dictionary containing all skills and ids."""
+    with open(f"./resources/skills.json", "r+") as skills_file:
+        skill_names = json.load(skills_file)
+    return skill_names
+
+def get_skill_info(argument):
+    """Converts a skill name to a dictionary containing the full skill name and id."""
+    skill_names = get_skill_dict()
+    skills = {**skill_names["nicknames"], **skill_names["fullnames"]}
+    skill_info = skills.get(argument, None)
+    return skill_info
+
+async def rsn_from_id(con, disc_id):
+    """Retrieves the most current main rsn given a player's discord id.
+    Returns None is player is not registered with an rsn."""
+    rsn_stmt = """SELECT rsn FROM account_owned WHERE disc_id = $1 AND is_main = 1 
+            AND end_dtg IS NOT NULL ORDER BY end_dtg DESC LIMIT 1;
+            """
+    rsn = await con.fetchval(rsn_stmt, str(disc_id))
+    print(rsn)
+    return rsn
+
+async def rsn_exists(con, player):
+    """Checks if a given rsn is present in the database (clan members only)."""
+    rsn_stmt = """SELECT EXISTS(SELECT 1 FROM rs WHERE rsn = $1)"""
+    exists = await con.fetchval(rsn_stmt, player)
+    return exists
+
+class XP():
     """Defines the cap command and functions."""
 
     def __init__(self, bot):
         self.bot = bot
-        self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
+        # self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
+
+    class Player():
+        """Defines the Player class, used to capture either a Discord user or rsn."""
+        def __init__(self, rsn):
+            self.rsn = rsn
+
+        @classmethod
+        async def convert(cls, ctx, player):
+            """Converts a Discord user to a valid rsn, or confirms an rsn."""
+            try:
+                member = await commands.MemberConverter().convert(ctx, player)
+                print(f"Member: {member}")
+                async with ctx.bot.pool.acquire() as con:
+                    rsn = await rsn_from_id(con, member.id)
+                if rsn is None:
+                    await ctx.send(f"Error: Player {player} not found in database.")
+                    return None
+                return cls(rsn)
+            except commands.BadArgument:
+                async with ctx.bot.pool.acquire() as con:
+                    exists = await rsn_exists(con, player)
+                if not exists:
+                    await ctx.send(f"Error: Player {player} not found in database.")
+                    return None
+                return cls(player)
 
     @commands.group(invoke_without_command=True)
-    async def xp(self, *args)
-        
-
-
-
-
-    async def skill(self, ctx, username, skill):
-        """Returns xp in the requested skill."""
-        with open(f"./resources/skills_alias.json", "r+") as skills_file:
-            skill_names = json.load(skills_file)
-        skill_name = skill_names.get(skill, None)
-        level_column = f"{skill_name}_level"
-        xp_column = f"{skill_name}_xp"
-        if skill_name is None:
-            out_msg = "Not a valid skill name. Try '$skilllist' for a list of skills."
-        else:
-            last_update = SESSION.query(XP).filter(
-                XP.name == username).order_by(desc(XP.date)).first()
-            if last_update is None:
-                out_msg = "User not in database."
+    async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player]=None):
+        """Handles the xp commands - allows users to retrieve level and xp values for themselves
+        and others."""
+        if ctx.invoked_subcommand is None:
+            # We have the skill ID and member, so we need to pull the most recent XP record for the
+            # given user(s). If no user(s) are supplied, default to the registered rsn of the
+            # Discord member who sent the command.
+            skill = info["skill"]
+            skill_id = info["id"]
+            actual_players = []
+            if players is None:
+                async with self.bot.pool.acquire() as con:
+                    print(ctx.author.id)
+                    username = await rsn_from_id(con, ctx.author.id)
+                    actual_players = (username,)
             else:
-                skill_level = getattr(last_update, level_column)
-                skill_xp = getattr(last_update, xp_column)
-                skill_xp = str(skill_xp)
-                skill_xp = f"{skill_xp[:-1]}.{skill_xp[-1]}"
-                out_msg = f"{username} has {skill_level} {skill_name.title()} with {skill_xp} XP."
-        await ctx.send(out_msg)
+                for player in players:
+                    print(player.rsn)
+                    if player.rsn.startswith("Error:"):
+                        await ctx.send(player)
+                    else:
+                        actual_players += (player.rsn,)
+            players = actual_players
+            # Now that we have a tuple of the valid players from the command, we can retrieve xp
+            # and skill values for each player in the specified skill.
+            xp_list = []
+            for player in players:
+                async with self.bot.pool.acquire() as con:
+                    xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level, 
+                              (skills -> $1 ->> 'xp')::integer AS xp, 
+                              (skills -> $1 ->> 'rank')::integer AS rank 
+                              FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
+                    xp_res = await con.fetchrow(xp_stmt, skill_id, player)
+                    if xp_res is None:
+                        await ctx.send(f"Player {player} not found in database.")
+                    else:
+                        xp_list.append([player, xp_res["level"], xp_res["xp"], xp_res["rank"]])
 
-    @commands.command(name="skilllist")
-    async def skilllist(self, ctx):
-        """Direct messages a user with a list of skill aliases."""
-        with open(f"./resources/skills_alias.json", "r+") as skills_file:
-            skill_names = json.load(skills_file)
+            xp_list = sorted(xp_list, key=lambda x: x[3])
+            out_msg = f"{skill.title()}:\n"
+            for num, rec in enumerate(xp_list):
+                out_msg += f"{num+1}. {rec[0]} has level {rec[1]} {skill}, with {rec[2]} xp.\n"
+            await ctx.send(f"```{out_msg}```")
+
+    @xp.command(name="list")
+    async def list(self, ctx):
+        """Sends a direct message containing skill nicknames."""
+        skill_names = get_skill_dict()
         out_msg = "List of skills and their aliases:\n```"
-        for alias, skill in skill_names.items():
-            out_msg += f"{skill.title()}: {alias}\n"
+        nicknames = skill_names["nicknames"]
+        for nickname, skill_info in nicknames.items():
+            out_msg += f"{skill_info['skill']}: {nickname}\n"
         out_msg = out_msg[:-1] + "```"
         await ctx.author.send(out_msg)
 
-    @commands.group(invoke_without_command=True)
-    async def stat(self, ctx):
-        """Try '$stat help' for detailed cap command information."""
-        if ctx.invoked_subcommand is None:
-            await ctx.send("Try '$stat help'.")
+    @xp.command(name="check")
+    @commands.is_owner()
+    async def check(self, ctx):
+        """Rechecks xp and adds new records."""
+        await self.report_xp()
 
     async def report_xp(self):
         """Adds all xp records to databse."""
         await self.bot.wait_until_ready()
-        self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
-            clan_parser = MyHTMLParser()
-            async with aiohttp.ClientSession() as session:
-                req_html = await fetch(session, clan_url)
-            clan_parser.feed(req_html)
-            clan_list = clan_parser.data
-            add_list = []
+            logging.info("Updating xp records...")
+            clan_list = await get_clan_list()
+            async with self.bot.pool.acquire() as con:
+                await update_names(con, clan_list)
+            print(clan_list)
             for user in clan_list:
-                xp_record = check_xp(user)
-                if xp_record is not None:
-                    add_list.append(xp_record)
-            SESSION.add_all(add_list)
-            SESSION.commit()
+                print(user)
+                xp_dict = await check_xp(user)
+                if xp_dict is not None:
+                    async with self.bot.pool.acquire() as con:
+                        await con.set_type_codec(
+                            'json',
+                            encoder=json.dumps,
+                            decoder=json.loads,
+                            schema='pg_catalog'
+                        )
+                        async with con.transaction():
+                            xp_stmt = """INSERT INTO xp(rsn, dtg, skills) VALUES($1, $2, $3::json)"""
+                            await con.execute(xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
 
             await asyncio.sleep(86400)
 
 def setup(bot):
     """Adds the cog to the bot."""
-    bot.add_cog(Stats(bot))
+    bot.add_cog(XP(bot))
 
 async def check_xp(username):
     """Creates a record with the current datetime for user's levels and xp."""
@@ -100,25 +173,17 @@ async def check_xp(username):
     except KeyError:
         print(f"{username}'s profile is private.")
         return None
-    with open(f"./resources/skills.json", "r+") as skills_file:
-        skill_names = json.load(skills_file)
 
     xp_dict = {}
-    xp_dict["name"] = name
-    xp_dict["date"] = datetime.datetime.now()
-    for skill in skillvalues:
-        level = skill["level"]
-        xp = skill["xp"]
-        skill_name = skill_names[f"{skill['id']}"]
+    xp_dict["rsn"] = name
+    xp_dict["dtg"] = datetime.now()
+    xp_values = {}
+    for skillinfo in skillvalues:
+        level = skillinfo["level"]
+        xp = skillinfo["xp"]
+        rank = skillinfo["rank"]
+        skill_id = skillinfo["id"]
+        xp_values[skill_id] = {"level": level, "xp": xp, "rank": rank}
+    xp_dict["skills"] = xp_values
 
-        xp_dict[f"{skill_name}_level"] = level
-        xp_dict[f"{skill_name}_xp"] = xp
-
-    xp_record = XP(**xp_dict)
-    return xp_record
-
-async def fetch(session, url):
-    """Fetches a web request asynchronously."""
-    async with async_timeout.timeout(10):
-        async with session.get(url) as response:
-            return await response.text()
+    return xp_dict

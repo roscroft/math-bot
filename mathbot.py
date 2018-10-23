@@ -41,25 +41,25 @@ class MathBot(commands.Bot):
         for extension in extensions_generator():
             try:
                 self.load_extension(extension)
-                print(f"Successfully loaded extension {extension}.")
+                logging.info(f"Successfully loaded extension {extension}.")
             except Exception:
-                print(f'Failed to load extension {extension}.', file=sys.stderr)
-                traceback.print_exc()
+                logging.exception(f'Failed to load extension {extension}.')
+                # traceback.print_exc()
 
         for submodule in submodules_generator():
             try:
                 self.load_extension(submodule)
-                print(f"Successfully loaded submodule {submodule}.")
+                logging.info(f"Successfully loaded submodule {submodule}.")
             except Exception:
-                print(f'Failed to load submodule {submodule}.', file=sys.stderr)
-                traceback.print_exc()
+                logging.exception(f'Failed to load submodule {submodule}.')
+                # traceback.print_exc()
 
     async def on_ready(self):
         """Prints bot initialization info"""
-        print('Logged in as')
-        print(self.user.name)
-        print(self.user.id)
-        print('------')
+        logging.info('Logged in as')
+        logging.info(self.user.name)
+        logging.info(self.user.id)
+        logging.info('------')
 
     async def on_message(self, message):
         """Handles commands based on messages sent"""
@@ -84,5 +84,5 @@ class MathBot(commands.Bot):
             self.load_extension(extension)
             await ctx.send(f"Successfully loaded extension {extension}.")
         except Exception:
-            await ctx.send(f'Failed to load extension {extension}.', file=sys.stderr)
-            traceback.print_exc()
+            await ctx.send(f'Failed to load extension {extension}.')
+            logging.exception(f'Failed to load extension {extension}.')
