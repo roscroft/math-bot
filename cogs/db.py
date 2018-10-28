@@ -29,6 +29,7 @@ class Database():
                 return reaction.emoji == u"\u2705"
 
             reaction_1, user_1 = await self.bot.wait_for('reaction_add', check=approval)
+
             # def disapproval(reaction, user):
             #     """Checks for disapproval reaction."""
             #     return reaction.emoji == u"\u274c"
@@ -36,9 +37,10 @@ class Database():
             # reaction_2, user_2 = await self.bot.wait_for('reaction_add', check=disapproval)
 
             if reaction_1:
-                await ctx.author.send("Your registration as {rsn} has been approved.")
-                await self.register_user(ctx.author.id, rsn, is_main)
-            elif reaction_2:
+                await ctx.author.send(f"Your registration as {rsn} has been approved.")
+                await self.register_user(str(ctx.author.id), rsn, is_main)
+            else:
+            # elif reaction_2:
                 await ctx.author.send(f"Your registration as {rsn} has been disapproved. "
                                       "You must reregister with a valid username.")
 
