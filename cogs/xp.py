@@ -42,7 +42,7 @@ class XP():
 
     def __init__(self, bot):
         self.bot = bot
-        # self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
+        self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
     class Player():
         """Defines the Player class, used to capture either a Discord user or rsn."""
