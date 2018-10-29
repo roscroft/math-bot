@@ -14,35 +14,44 @@ class Database():
         """Handles registration output."""
         async with self.bot.pool.acquire() as con:
             exists = await rsn_exists(con, rsn)
+        disc_id = str(ctx.author.id)
 
         if not exists:
             await ctx.send(f"Username {rsn} not found in clan database.")
-        else:
-            # Send message to registration channel for approval.
-            self.bot.reg_ch = self.bot.get_channel(registration_channel)
-            await self.bot.reg_ch.send(f"Discord user {ctx.author.name} is attempting to register "
-                                       f"Runescape username {rsn}. React with :white_check_mark: "
-                                       "to approve, or :x: to disapprove.")
+            return
 
-            def approval(reaction, user):
-                """Checks for approval reaction."""
-                return reaction.emoji == u"\u2705"
+        # First check if the user is currently registered for the username.
+        names_stmt = """SELECT rsn FROM account_owned WHERE end_dtg IS NULL"""
+        async with self.bot.pool.acquire() as con:
+            names = await con.fetch(names_stmt, disc_id)
 
-            reaction_1, user_1 = await self.bot.wait_for('reaction_add', check=approval)
+        if rsn in names:
+            await ctx.send(f"Username {rsn} already registered.")
+            return
 
-            # def disapproval(reaction, user):
-            #     """Checks for disapproval reaction."""
-            #     return reaction.emoji == u"\u274c"
+        # Send message to registration channel for approval.
+        self.bot.reg_ch = self.bot.get_channel(registration_channel)
+        approval = await self.bot.reg_ch.send(f"Discord user {ctx.author.name} is attempting to "
+                                             f"register Runescape username {rsn}. React with "
+                                             ":white_check_mark: to approve, or :x: to disapprove.")
 
-            # reaction_2, user_2 = await self.bot.wait_for('reaction_add', check=disapproval)
+        def approval(reaction, user):
+            """Checks for approval reaction."""
+            return reaction.emoji == u"\u2705" and reaction.emoji == u"\u274c"
 
-            if reaction_1:
-                await ctx.author.send(f"Your registration as {rsn} has been approved.")
-                await self.register_user(str(ctx.author.id), rsn, is_main)
-            else:
-            # elif reaction_2:
-                await ctx.author.send(f"Your registration as {rsn} has been disapproved. "
-                                      "You must reregister with a valid username.")
+        reaction, user = await self.bot.wait_for('reaction_add', check=approval)
+
+        if reaction.emoji == u"\u2705":
+            await ctx.author.send(f"Your registration as {rsn} has been approved.")
+            await self.register_user(disc_id, rsn, is_main)
+            await approval.delete()
+            await self.bot.reg_ch.send(f"Discord user {ctx.author.name} approved as Runescape "
+                                       f"user {rsn}.")
+        elif reaction.emoji == u"\u274c":
+            await ctx.author.send(f"Your registration as {rsn} has been disapproved. "
+                                    "You must reregister with a valid username.")
+            await approval.delete()
+            return
 
     async def register_user(self, disc_id, rsn, is_main):
         """Inserts account registers into the database."""
