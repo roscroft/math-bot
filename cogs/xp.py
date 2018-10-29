@@ -80,7 +80,9 @@ class XP():
             skill = info["skill"]
             skill_id = info["id"]
             actual_players = []
-            if players is None:
+            logging.info(f"Players requested: {players}")
+            
+            if not players:
                 async with self.bot.pool.acquire() as con:
                     logging.info(ctx.author.id)
                     username = await rsn_from_id(con, ctx.author.id)
