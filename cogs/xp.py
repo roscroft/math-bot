@@ -24,7 +24,7 @@ def get_skill_info(argument):
 async def rsn_from_id(con, disc_id):
     """Retrieves the most current main rsn given a player's discord id.
     Returns None is player is not registered with an rsn."""
-    rsn_stmt = """SELECT rsn FROM account_owned WHERE disc_id = $1 AND is_main = 1 
+    rsn_stmt = """SELECT rsn FROM account_owned WHERE disc_id = $1 AND is_main = 1
             AND end_dtg IS NOT NULL ORDER BY end_dtg DESC LIMIT 1;
             """
     rsn = await con.fetchval(rsn_stmt, str(disc_id))
@@ -98,9 +98,9 @@ class XP():
             xp_list = []
             for player in players:
                 async with self.bot.pool.acquire() as con:
-                    xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level, 
-                              (skills -> $1 ->> 'xp')::integer AS xp, 
-                              (skills -> $1 ->> 'rank')::integer AS rank 
+                    xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level,
+                              (skills -> $1 ->> 'xp')::integer AS xp,
+                              (skills -> $1 ->> 'rank')::integer AS rank
                               FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
                     xp_res = await con.fetchrow(xp_stmt, skill_id, player)
                     if xp_res is None:
@@ -152,8 +152,10 @@ class XP():
                             schema='pg_catalog'
                         )
                         async with con.transaction():
-                            xp_stmt = """INSERT INTO xp(rsn, dtg, skills) VALUES($1, $2, $3::json)"""
-                            await con.execute(xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
+                            xp_stmt = """INSERT INTO xp(rsn, dtg, skills)
+                                VALUES($1, $2, $3::json)"""
+                            await con.execute(
+                                xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
 
             await asyncio.sleep(86400)
 
