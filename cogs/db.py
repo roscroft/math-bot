@@ -35,6 +35,8 @@ class Database():
                                                  f"register Runescape username {rsn}. React with "
                                                  ":white_check_mark: to approve, or :x: to "
                                                  "disapprove.")
+        await approve_msg.add_reaction(u"\u2705")
+        await approve_msg.add_reaction(u"\u274c")
 
         def approval(reaction, user):
             """Checks for approval reaction."""
@@ -100,6 +102,8 @@ class Database():
                       f"{old_rsn} to {new_rsn}. React with :white_check_mark: to approve, or :x: "
                       "to disapprove.")
         change_msg = await self.bot.reg_ch.send(change_str)
+        await change_msg.add_reaction(u"\u2705")
+        await change_msg.add_reaction(u"\u274c")
 
         def approval(reaction, user):
             """Checks for approval reaction."""

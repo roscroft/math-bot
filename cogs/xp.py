@@ -24,11 +24,11 @@ def get_skill_info(argument):
 async def rsn_from_id(con, disc_id):
     """Retrieves the most current main rsn given a player's discord id.
     Returns None is player is not registered with an rsn."""
-    rsn_stmt = """SELECT rsn FROM account_owned WHERE disc_id = $1 AND is_main = 1
-            AND end_dtg IS NOT NULL ORDER BY end_dtg DESC LIMIT 1;
+    rsn_stmt = """SELECT rsn FROM account_owned WHERE disc_id = $1 AND is_main = True
+            AND end_dtg IS NULL ORDER BY end_dtg DESC LIMIT 1;
             """
     rsn = await con.fetchval(rsn_stmt, str(disc_id))
-    print(rsn)
+    logging.info(rsn)
     return rsn
 
 async def rsn_exists(con, rsn):
@@ -42,7 +42,7 @@ class XP():
 
     def __init__(self, bot):
         self.bot = bot
-        # self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
+        self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
     class Player():
         """Defines the Player class, used to capture either a Discord user or rsn."""
@@ -54,7 +54,7 @@ class XP():
             """Converts a Discord user to a valid rsn, or confirms an rsn."""
             try:
                 member = await commands.MemberConverter().convert(ctx, player)
-                print(f"Member: {member}")
+                logging.info(f"Member: {member}")
                 async with ctx.bot.pool.acquire() as con:
                     rsn = await rsn_from_id(con, member.id)
                 if rsn is None:
@@ -82,12 +82,12 @@ class XP():
             actual_players = []
             if players is None:
                 async with self.bot.pool.acquire() as con:
-                    print(ctx.author.id)
+                    logging.info(ctx.author.id)
                     username = await rsn_from_id(con, ctx.author.id)
                     actual_players = (username,)
             else:
                 for player in players:
-                    print(player.rsn)
+                    logging.info(player.rsn)
                     if player.rsn.startswith("Error:"):
                         await ctx.send(player)
                     else:
@@ -137,11 +137,12 @@ class XP():
         while not self.bot.is_closed():
             logging.info("Updating xp records...")
             clan_list = await get_clan_list()
+            logging.info(clan_list)
+            logging.info(len(clan_list))
             async with self.bot.pool.acquire() as con:
                 await update_names(con, clan_list)
-            print(clan_list)
             for user in clan_list:
-                print(user)
+                logging.info(user)
                 xp_dict = await check_xp(user)
                 if xp_dict is not None:
                     async with self.bot.pool.acquire() as con:
@@ -156,6 +157,8 @@ class XP():
                                 VALUES($1, $2, $3::json)"""
                             await con.execute(
                                 xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
+                else:
+                    continue
 
             await asyncio.sleep(86400)
 
@@ -169,11 +172,10 @@ async def check_xp(username):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as alog_resp:
             data_json = await alog_resp.json()
-    try:
-        name = data_json['name']
-        skillvalues = data_json['skillvalues']
-    except KeyError:
-        print(f"{username}'s profile is private.")
+    name = data_json.get('name', None)
+    skillvalues = data_json.get('skillvalues', None)
+    if name is None or skillvalues is None:
+        logging.info(f"{username}'s profile is private.")
         return None
 
     xp_dict = {}
@@ -181,10 +183,10 @@ async def check_xp(username):
     xp_dict["dtg"] = datetime.now()
     xp_values = {}
     for skillinfo in skillvalues:
-        level = skillinfo["level"]
-        xp = skillinfo["xp"]
-        rank = skillinfo["rank"]
-        skill_id = skillinfo["id"]
+        level = skillinfo.get("level", 0)
+        xp = skillinfo.get("xp", 0)
+        rank = skillinfo.get("rank", 0)
+        skill_id = skillinfo.get("id", 100)
         xp_values[skill_id] = {"level": level, "xp": xp, "rank": rank}
     xp_dict["skills"] = xp_values
 

@@ -180,7 +180,6 @@ class Cap():
                             DO UPDATE SET last_cap_time = EXCLUDED.last_cap_time;
                             """
                         await con.execute(upsert_stmt, name, cap_date)
-
             await asyncio.sleep(600)
 
     async def update_names(self, clan_list):
