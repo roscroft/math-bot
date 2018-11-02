@@ -40,7 +40,7 @@ class Database():
 
         def approval(reaction, user):
             """Checks for approval reaction."""
-            return reaction.emoji == u"\u2705" or reaction.emoji == u"\u274c"
+            return (user != self.bot.user) and (reaction.emoji == u"\u2705" or reaction.emoji == u"\u274c")
 
         reaction, _ = await self.bot.wait_for('reaction_add', check=approval)
 
