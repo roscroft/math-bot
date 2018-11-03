@@ -1,19 +1,18 @@
 """Defines RS-related commands in the RS class."""
-import json
 import time
 import random
 import datetime
-import requests
+import aiohttp
 import discord
 from discord.ext import commands
 from utils.config import player_url
 
-REQUEST_SESSION = requests.session()
-
-def get_alog(username):
+async def get_alog(username):
     """Returns a nicely formatted string containing data from the users' adventurer's log."""
-    data = REQUEST_SESSION.get(f"{player_url}{username}&activities=20").content
-    data_json = json.loads(data)
+    url = f"{player_url}{username}&activities=20"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as alog_resp:
+            data_json = await alog_resp.json()
     try:
         out_msg = f"Adventurer's Log for {username}:\n"
         activities = data_json["activities"]
