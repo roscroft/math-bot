@@ -41,8 +41,8 @@ class Cap():
 
     def __init__(self, bot):
         self.bot = bot
-        self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
         self.bot.build_tick_checker = self.bot.loop.create_task(self.get_build_tick())
+        self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
 
     @commands.group(invoke_without_command=True)
     async def cap(self, ctx):
