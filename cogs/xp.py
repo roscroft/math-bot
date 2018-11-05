@@ -19,6 +19,8 @@ def get_skill_info(argument):
     skill_names = get_skill_dict()
     skills = {**skill_names["nicknames"], **skill_names["fullnames"]}
     skill_info = skills.get(argument, None)
+    if argument == "all":
+        skill_info = "all"
     return skill_info
 
 async def rsn_from_id(con, disc_id):
@@ -37,6 +39,29 @@ async def rsn_exists(con, rsn):
     exists = await con.fetchval(rsn_stmt, rsn)
     return exists
 
+class Player():
+    """Defines the Player class, used to capture either a Discord user or rsn."""
+    def __init__(self, rsn):
+        self.rsn = rsn
+
+    @classmethod
+    async def convert(cls, ctx, player):
+        """Converts a Discord user to a valid rsn, or confirms an rsn."""
+        try:
+            member = await commands.MemberConverter().convert(ctx, player)
+            logging.info(f"Member: {member}")
+            async with ctx.bot.pool.acquire() as con:
+                rsn = await rsn_from_id(con, member.id)
+            if rsn is None:
+                await ctx.send(f"Error: Player {player} not found in database.")
+            return cls(rsn)
+        except commands.BadArgument:
+            async with ctx.bot.pool.acquire() as con:
+                exists = await rsn_exists(con, player)
+            if not exists:
+                await ctx.send(f"Error: Player {player} not found in database.")
+            return cls(player)
+
 class XP():
     """Defines the cap command and functions."""
 
@@ -44,33 +69,24 @@ class XP():
         self.bot = bot
         self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
-    class Player():
-        """Defines the Player class, used to capture either a Discord user or rsn."""
-        def __init__(self, rsn):
-            self.rsn = rsn
-
-        @classmethod
-        async def convert(cls, ctx, player):
-            """Converts a Discord user to a valid rsn, or confirms an rsn."""
-            try:
-                member = await commands.MemberConverter().convert(ctx, player)
-                logging.info(f"Member: {member}")
-                async with ctx.bot.pool.acquire() as con:
-                    rsn = await rsn_from_id(con, member.id)
-                if rsn is None:
-                    await ctx.send(f"Error: Player {player} not found in database.")
-                    return None
-                return cls(rsn)
-            except commands.BadArgument:
-                async with ctx.bot.pool.acquire() as con:
-                    exists = await rsn_exists(con, player)
-                if not exists:
-                    await ctx.send(f"Error: Player {player} not found in database.")
-                    return None
-                return cls(player)
+    async def get_players(self, ctx, players):
+        """Coerces an optional list of players into a reasonable type."""
+        if not players:
+            async with self.bot.pool.acquire() as con:
+                logging.info(ctx.author.id)
+                username = await rsn_from_id(con, ctx.author.id)
+                actual_players = (username,)
+        else:
+            for player in players:
+                logging.info(player.rsn)
+                if player.rsn.startswith("Error:"):
+                    await ctx.send(player)
+                else:
+                    actual_players += (player.rsn,)
+        return actual_players
 
     @commands.group(invoke_without_command=True)
-    async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player]=None):
+    async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
         """Handles the xp commands - allows users to retrieve level and xp values for themselves
         and others."""
         if ctx.invoked_subcommand is None:
@@ -79,22 +95,10 @@ class XP():
             # Discord member who sent the command.
             skill = info["skill"]
             skill_id = info["id"]
-            actual_players = []
-            logging.info(f"Players requested: {players}")
-            
             if not players:
-                async with self.bot.pool.acquire() as con:
-                    logging.info(ctx.author.id)
-                    username = await rsn_from_id(con, ctx.author.id)
-                    actual_players = (username,)
-            else:
-                for player in players:
-                    logging.info(player.rsn)
-                    if player.rsn.startswith("Error:"):
-                        await ctx.send(player)
-                    else:
-                        actual_players += (player.rsn,)
-            players = actual_players
+                players = [author]
+            logging.info(f"Players requested: {players}")
+            players = await self.get_players(ctx, players)
             # Now that we have a tuple of the valid players from the command, we can retrieve xp
             # and skill values for each player in the specified skill.
             xp_list = []

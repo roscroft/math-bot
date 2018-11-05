@@ -1,7 +1,5 @@
 """Runs bots for a Discord server."""
 import os
-import sys
-import traceback
 import logging
 from discord.ext import commands
 from utils import config
@@ -44,7 +42,6 @@ class MathBot(commands.Bot):
                 logging.info(f"Successfully loaded extension {extension}.")
             except Exception:
                 logging.exception(f'Failed to load extension {extension}.')
-                # traceback.print_exc()
 
         for submodule in submodules_generator():
             try:
@@ -52,7 +49,6 @@ class MathBot(commands.Bot):
                 logging.info(f"Successfully loaded submodule {submodule}.")
             except Exception:
                 logging.exception(f'Failed to load submodule {submodule}.')
-                # traceback.print_exc()
 
     async def on_ready(self):
         """Prints bot initialization info"""
