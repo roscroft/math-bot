@@ -1,6 +1,7 @@
 """Defines the functions used for handling citadel caps."""
 from datetime import datetime
 from datetime import timedelta
+import json
 import logging
 import asyncio
 import aiohttp
@@ -123,10 +124,38 @@ class Cap():
         """Rechecks all alogs for cap messages."""
         await self.report_caps(list(user))
 
-    @cap.command(name="tick")
+    @commands.group(invoke_without_command=True)
     async def tick(self, ctx):
         """Displays the last build tick."""
-        await ctx.send(f"Last build tick: {self.bot.last_build_tick}")
+        if ctx.invoked_subcommand is None:
+            await ctx.send(f"Last build tick: {self.bot.last_build_tick}")
+
+    class Day(commands.Converter):
+        """Maps a day to an integer."""
+        async def convert(self, ctx, argument):
+            day_dict = {"monday":0, "tuesday":1, "wednesday":2, "thursday":3, "friday":4,
+                        "saturday":5, "sunday":6}
+            return day_dict.get(argument.lower(), None)
+
+    @tick.command(name="move")
+    async def _move(self, ctx, new_day: Day, new_hour):
+        """Moves build tick to new time."""
+        with open(f"./resources/reset.json", "r+") as reset_file:
+            reset = json.load(reset_file)
+        if new_day is None:
+            await ctx.send("Must enter a valid day of the week (Monday, Tuesday, etc.)")
+            return
+        if new_hour is None:
+            await ctx.send("Must enter an hour between 0 and 24.")
+            return
+
+        reset = {}
+        reset["day"] = new_day
+        reset["hour"] = new_hour
+        with open(f"./resources/reset.json", "w") as reset_file:
+            json.dump(reset, reset_file)
+        await ctx.send(f"Build tick changed.")
+        await self.get_build_tick()
 
     async def get_cap_list(self, clan_list):
         """Gets the list of all clan members who have capped."""
@@ -175,7 +204,7 @@ class Cap():
                 # Put caps in database - update records to most recent time
                 async with self.bot.pool.acquire() as con:
                     async with con.transaction():
-                        upsert_stmt = f"""INSERT INTO caps(rsn, last_cap_time) 
+                        upsert_stmt = f"""INSERT INTO caps(rsn, last_cap_time)
                             VALUES($1, $2) ON CONFLICT ON CONSTRAINT caps_rsn_key 
                             DO UPDATE SET last_cap_time = EXCLUDED.last_cap_time;
                             """
@@ -186,20 +215,22 @@ class Cap():
         """Adds all names from the clan list to the database."""
         async with self.bot.pool.acquire() as con:
             async with con.transaction():
-                upsert_stmt = """INSERT INTO rs(rsn) VALUES($1) ON CONFLICT (rsn) DO NOTHING;
-                """
+                upsert_stmt = """INSERT INTO rs(rsn) VALUES($1) ON CONFLICT (rsn) DO NOTHING;"""
                 names = [(name,) for name in clan_list]
                 await con.executemany(upsert_stmt, names)
 
     async def get_build_tick(self):
         """Returns the most recent build tick - Wednesday 1600 UTC"""
         await self.bot.wait_until_ready()
+        with open("./resources/reset.json", "r") as reset_file:
+            reset = json.load(reset_file)
+        reset_day = reset["day"]
+        reset_hour = reset["hour"]
         self.bot.cap_ch = self.bot.get_channel(cap_channel)
         while not self.bot.is_closed():
             today_utc = datetime.utcnow()
-            d_off = (today_utc.weekday() - 2) % 7
-            # h_off = (today_utc.hour - 16)
-            h_off = today_utc.hour
+            d_off = (today_utc.weekday() - reset_day) % 7
+            h_off = (today_utc.hour - reset_hour)
             m_off = today_utc.minute
             s_off = today_utc.second
             ms_off = today_utc.microsecond
