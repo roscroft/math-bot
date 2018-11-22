@@ -69,21 +69,24 @@ class XP():
         self.bot = bot
         self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
-    async def get_players(self, ctx, players):
-        """Coerces an optional list of players into a reasonable type."""
-        if not players:
+    async def get_xp_list(self, ctx, players, info):
+        """Gets the skill info for each player, returns a list sorted by xp value."""
+        skill_id = info["id"]
+        xp_list = []
+        for player in players:
             async with self.bot.pool.acquire() as con:
-                logging.info(ctx.author.id)
-                username = await rsn_from_id(con, ctx.author.id)
-                actual_players = (username,)
-        else:
-            for player in players:
-                logging.info(player.rsn)
-                if player.rsn.startswith("Error:"):
-                    await ctx.send(player)
+                xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level,
+                            (skills -> $1 ->> 'xp')::integer AS xp,
+                            (skills -> $1 ->> 'rank')::integer AS rank
+                            FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
+                xp_res = await con.fetchrow(xp_stmt, skill_id, player)
+                if xp_res is None:
+                    await ctx.send(f"Player {player} not found in database.")
                 else:
-                    actual_players += (player.rsn,)
-        return actual_players
+                    xp_list.append([player, xp_res["level"], xp_res["xp"], xp_res["rank"]])
+
+        xp_list = sorted(xp_list, key=lambda x: x[3])
+        return xp_list
 
     @commands.group(invoke_without_command=True)
     async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
@@ -93,28 +96,15 @@ class XP():
             # We have the skill ID and member, so we need to pull the most recent XP record for the
             # given user(s). If no user(s) are supplied, default to the registered rsn of the
             # Discord member who sent the command.
-            skill = info["skill"]
-            skill_id = info["id"]
+            auth = await Player.convert(ctx, ctx.author.name)
             if not players:
-                players = [author]
+                players = [auth.rsn]
+            players = [player for player in players if player is not None]
             logging.info(f"Players requested: {players}")
-            players = await self.get_players(ctx, players)
             # Now that we have a tuple of the valid players from the command, we can retrieve xp
             # and skill values for each player in the specified skill.
-            xp_list = []
-            for player in players:
-                async with self.bot.pool.acquire() as con:
-                    xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level,
-                              (skills -> $1 ->> 'xp')::integer AS xp,
-                              (skills -> $1 ->> 'rank')::integer AS rank
-                              FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
-                    xp_res = await con.fetchrow(xp_stmt, skill_id, player)
-                    if xp_res is None:
-                        await ctx.send(f"Player {player} not found in database.")
-                    else:
-                        xp_list.append([player, xp_res["level"], xp_res["xp"], xp_res["rank"]])
-
-            xp_list = sorted(xp_list, key=lambda x: x[3])
+            xp_list = await self.get_xp_list(ctx, players, info)
+            skill = info["skill"]
             out_msg = f"{skill.title()}:\n"
             for num, rec in enumerate(xp_list):
                 out_msg += f"{num+1}. {rec[0]} has level {rec[1]} {skill}, with {rec[2]} xp.\n"
@@ -190,10 +180,10 @@ async def check_xp(username):
     xp_values = {}
     for skillinfo in skillvalues:
         level = skillinfo.get("level", 0)
-        xp = skillinfo.get("xp", 0)
+        skill_xp = skillinfo.get("xp", 0)
         rank = skillinfo.get("rank", 0)
         skill_id = skillinfo.get("id", 100)
-        xp_values[skill_id] = {"level": level, "xp": xp, "rank": rank}
+        xp_values[skill_id] = {"level": level, "xp": skill_xp, "rank": rank}
     xp_dict["skills"] = xp_values
 
     return xp_dict
