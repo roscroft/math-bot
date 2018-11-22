@@ -10,6 +10,41 @@ class Database():
     def __init__(self, bot):
         self.bot = bot
 
+    async def handle_approval(self, ctx, msg_dct, rsn_dct):
+        """Sends the approval message to registration channel. Etc."""
+        self.bot.reg_ch = self.bot.get_channel(registration_channel)
+        register = rsn_dct["register"]
+        new_rsn = rsn_dct["new_rsn"]
+        disc_id = rsn_dct["disc_id"]
+        is_main = rsn_dct["is_main"]
+        if not register:
+            old_rsn = rsn_dct["old_rsn"]
+            start_dtg = rsn_dct["start_dtg"]
+
+        approve_msg = await self.bot.reg_ch.send(msg_dct["approve"])
+        await approve_msg.add_reaction(u"\u2705")
+        await approve_msg.add_reaction(u"\u274c")
+
+        def approval(reaction, user):
+            """Checks for approval reaction."""
+            return (user != self.bot.user) and (
+                reaction.emoji == u"\u2705" or reaction.emoji == u"\u274c")
+
+        reaction, _ = await self.bot.wait_for('reaction_add', check=approval)
+
+        if reaction.emoji == u"\u2705":
+            await ctx.author.send(msg_dct["approved"])
+            if register:
+                await self.register_user(disc_id, new_rsn, is_main)
+            elif not register:
+                await self.name_change(disc_id, old_rsn, start_dtg, old_rsn, is_main)
+            await approve_msg.delete()
+            await self.bot.reg_ch.send(msg_dct["finalized"])
+        elif reaction.emoji == u"\u274c":
+            await ctx.author.send(msg_dct["denied"])
+            await approve_msg.delete()
+            return
+
     async def handle_registration(self, ctx, rsn, is_main):
         """Handles registration output."""
         async with self.bot.pool.acquire() as con:
@@ -29,32 +64,29 @@ class Database():
             await ctx.send(f"Username {rsn} already registered.")
             return
 
-        # Send message to registration channel for approval.
-        self.bot.reg_ch = self.bot.get_channel(registration_channel)
-        approve_msg = await self.bot.reg_ch.send(f"Discord user {ctx.author.name} is attempting to "
-                                                 f"register Runescape username {rsn}. React with "
-                                                 ":white_check_mark: to approve, or :x: to "
-                                                 "disapprove.")
-        await approve_msg.add_reaction(u"\u2705")
-        await approve_msg.add_reaction(u"\u274c")
-
-        def approval(reaction, user):
-            """Checks for approval reaction."""
-            return (user != self.bot.user) and (reaction.emoji == u"\u2705" or reaction.emoji == u"\u274c")
-
-        reaction, _ = await self.bot.wait_for('reaction_add', check=approval)
-
-        if reaction.emoji == u"\u2705":
-            await ctx.author.send(f"Your registration as {rsn} has been approved.")
-            await self.register_user(disc_id, rsn, is_main)
-            await approve_msg.delete()
-            await self.bot.reg_ch.send(f"Discord user {ctx.author.name} approved as Runescape "
-                                       f"user {rsn}.")
-        elif reaction.emoji == u"\u274c":
-            await ctx.author.send(f"Your registration as {rsn} has been disapproved. "
-                                  "You must reregister with a valid username.")
-            await approve_msg.delete()
+        # Next, check if the user is already registered for a main. If so,
+        # begin the name change process.
+        id_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE disc_id = $1 AND
+            is_main = True);"""
+        async with self.bot.pool.acquire() as con:
+            exists = await con.fetchval(id_stmt, str(ctx.author.id))
+        if exists:
+            await ctx.send(f"You already have a main account registered. Use '$change "
+                           "main <old_name> <new_name>' to change your name.")
             return
+
+        rsn_dct = {"disc_id": disc_id, "new_rsn": rsn, "is_main": is_main, "register": True}
+        msg_dct = {}
+        msg_dct["approve"] = (f"Discord user {ctx.author.name} is attempting to register Runescape "
+                              f"username {rsn}. React with :white_check_mark: to approve, or :x: "
+                              "to disapprove.")
+        msg_dct["approved"] = (f"Your registration as {rsn} has been approved.")
+        msg_dct["finalized"] = (f"Discord user {ctx.author.name} approved as Runescape "
+                                f"user {rsn}.")
+        msg_dct["denied"] = (f"Your registration as {rsn} has been denied. "
+                             "You must reregister with a valid username.")
+
+        self.handle_approval(ctx, msg_dct, rsn_dct)
 
     async def register_user(self, disc_id, rsn, is_main):
         """Inserts account registers into the database."""
@@ -96,32 +128,17 @@ class Database():
             await ctx.send(f"You do not currently own username {old_rsn}.")
             return
 
-        # Send message to registration channel for approval.
-        self.bot.reg_ch = self.bot.get_channel(registration_channel)
-        change_str = (f"Discord user {ctx.author.name} is attempting to change Runescape username "
-                      f"{old_rsn} to {new_rsn}. React with :white_check_mark: to approve, or :x: "
-                      "to disapprove.")
-        change_msg = await self.bot.reg_ch.send(change_str)
-        await change_msg.add_reaction(u"\u2705")
-        await change_msg.add_reaction(u"\u274c")
-
-        def approval(reaction, user):
-            """Checks for approval reaction."""
-            return reaction.emoji == u"\u2705" or reaction.emoji == u"\u274c"
-
-        reaction, _ = await self.bot.wait_for('reaction_add', check=approval)
-
-        if reaction.emoji == u"\u2705":
-            await ctx.author.send(f"Your name change to {new_rsn} has been approved.")
-            await self.name_change(disc_id, old_rsn, start_dtg, old_rsn, is_main)
-            await change_msg.delete()
-            await self.bot.reg_ch.send(f"Discord user {ctx.author.name} changed Runescape username "
-                                       f"from {old_rsn} to {new_rsn}.")
-        elif reaction.emoji == u"\u274c":
-            await ctx.author.send(f"Your name change from {old_rsn} to {new_rsn} has been "
-                                  "disapproved.")
-            await change_msg.delete()
-            return
+        msg_dct = {}
+        msg_dct["approve"] = (f"Discord user {ctx.author.name} is attempting to change Runescape "
+                              f"username {old_rsn} to {new_rsn}. React with :white_check_mark: to "
+                              "approve, or :x: to disapprove.")
+        msg_dct["approved"] = (f"Your name change to {new_rsn} has been approved.")
+        msg_dct["finalized"] = (f"Discord user {ctx.author.name} changed Runescape username from "
+                                f"{old_rsn} to {new_rsn}")
+        msg_dct["denied"] = (f"Your name change from {old_rsn} to {new_rsn} has been denied.")
+        rsn_dct = {"new_rsn": new_rsn, "old_rsn": old_rsn, "disc_id": disc_id,
+                   "start_dtg": start_dtg, "is_main": is_main}
+        self.handle_approval(ctx, msg_dct, rsn_dct)
 
     async def name_change(self, disc_id, old_rsn, start_dtg, new_rsn, is_main):
         """Processes name changes."""

@@ -125,6 +125,7 @@ class XP():
     @commands.is_owner()
     async def check(self, ctx):
         """Rechecks xp and adds new records."""
+        await ctx.send("Updating xp records...")
         await self.report_xp()
 
     async def report_xp(self):

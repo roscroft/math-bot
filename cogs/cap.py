@@ -221,26 +221,29 @@ class Cap():
 
     async def get_build_tick(self):
         """Returns the most recent build tick - Wednesday 1600 UTC"""
-        await self.bot.wait_until_ready()
-        with open("./resources/reset.json", "r") as reset_file:
-            reset = json.load(reset_file)
-        reset_day = reset["day"]
-        reset_hour = reset["hour"]
-        self.bot.cap_ch = self.bot.get_channel(cap_channel)
-        while not self.bot.is_closed():
-            today_utc = datetime.utcnow()
-            d_off = (today_utc.weekday() - reset_day) % 7
-            h_off = (today_utc.hour - reset_hour)
-            m_off = today_utc.minute
-            s_off = today_utc.second
-            ms_off = today_utc.microsecond
-            tdel = timedelta(
-                days=d_off, hours=h_off, minutes=m_off, seconds=s_off, microseconds=ms_off)
-            self.bot.last_build_tick = today_utc - tdel
-            logging.info("Last build tick:")
-            logging.info(self.bot.last_build_tick)
+        try:
+            await self.bot.wait_until_ready()
+            with open("./resources/reset.json", "r") as reset_file:
+                reset = json.load(reset_file)
+            reset_day = reset["day"]
+            reset_hour = reset["hour"]
+            self.bot.cap_ch = self.bot.get_channel(cap_channel)
+            while not self.bot.is_closed():
+                today_utc = datetime.utcnow()
+                d_off = (today_utc.weekday() - reset_day) % 7
+                h_off = (today_utc.hour - reset_hour)
+                m_off = today_utc.minute
+                s_off = today_utc.second
+                ms_off = today_utc.microsecond
+                tdel = timedelta(
+                    days=d_off, hours=h_off, minutes=m_off, seconds=s_off, microseconds=ms_off)
+                self.bot.last_build_tick = today_utc - tdel
+                logging.info("Last build tick:")
+                logging.info(self.bot.last_build_tick)
 
-            await asyncio.sleep(3600)
+                await asyncio.sleep(3600)
+        except Exception as e:
+            print(e)
 
 def setup(bot):
     """Adds the cog to the bot."""
