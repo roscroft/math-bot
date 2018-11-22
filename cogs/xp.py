@@ -96,10 +96,10 @@ class XP():
             # We have the skill ID and member, so we need to pull the most recent XP record for the
             # given user(s). If no user(s) are supplied, default to the registered rsn of the
             # Discord member who sent the command.
-            auth = await Player.convert(ctx, ctx.author.name)
             if not players:
-                players = [auth.rsn]
-            players = [player for player in players if player is not None]
+                auth = await Player.convert(ctx, ctx.author.name)
+                players = [auth]
+            players = [player.rsn for player in players if player is not None]
             logging.info(f"Players requested: {players}")
             # Now that we have a tuple of the valid players from the command, we can retrieve xp
             # and skill values for each player in the specified skill.
