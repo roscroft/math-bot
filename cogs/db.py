@@ -14,12 +14,6 @@ class Database():
         """Sends the approval message to registration channel. Etc."""
         self.bot.reg_ch = self.bot.get_channel(registration_channel)
         register = rsn_dct["register"]
-        new_rsn = rsn_dct["new_rsn"]
-        disc_id = rsn_dct["disc_id"]
-        is_main = rsn_dct["is_main"]
-        if not register:
-            old_rsn = rsn_dct["old_rsn"]
-            start_dtg = rsn_dct["start_dtg"]
 
         approve_msg = await self.bot.reg_ch.send(msg_dct["approve"])
         await approve_msg.add_reaction(u"\u2705")
@@ -35,9 +29,9 @@ class Database():
         if reaction.emoji == u"\u2705":
             await ctx.author.send(msg_dct["approved"])
             if register:
-                await self.register_user(disc_id, new_rsn, is_main)
+                await self.register_user(rsn_dct)
             elif not register:
-                await self.name_change(disc_id, old_rsn, start_dtg, old_rsn, is_main)
+                await self.name_change(rsn_dct)
             await approve_msg.delete()
             await self.bot.reg_ch.send(msg_dct["finalized"])
         elif reaction.emoji == u"\u274c":
@@ -56,21 +50,19 @@ class Database():
             return
 
         # First check if the user is currently registered for the username.
-        names_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE rsn = $1 AND
-            end_dtg IS NULL);"""
-        async with self.bot.pool.acquire() as con:
-            exists = await con.fetchval(names_stmt, rsn)
-        if exists:
-            await ctx.send(f"Username {rsn} already registered.")
-            return
-
         # Next, check if the user is already registered for a main. If so,
         # begin the name change process.
+        names_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE rsn = $1 AND
+            end_dtg IS NULL);"""
         id_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE disc_id = $1 AND
             is_main = True);"""
         async with self.bot.pool.acquire() as con:
-            exists = await con.fetchval(id_stmt, str(ctx.author.id))
-        if exists:
+            name_exists = await con.fetchval(names_stmt, rsn)
+            id_exists = await con.fetchval(id_stmt, str(ctx.author.id))
+        if name_exists:
+            await ctx.send(f"Username {rsn} already registered.")
+            return
+        if id_exists:
             await ctx.send(f"You already have a main account registered. Use '$change "
                            "main <old_name> <new_name>' to change your name.")
             return
@@ -86,10 +78,13 @@ class Database():
         msg_dct["denied"] = (f"Your registration as {rsn} has been denied. "
                              "You must reregister with a valid username.")
 
-        self.handle_approval(ctx, msg_dct, rsn_dct)
+        await self.handle_approval(ctx, msg_dct, rsn_dct)
 
-    async def register_user(self, disc_id, rsn, is_main):
+    async def register_user(self, rsn_dct):
         """Inserts account registers into the database."""
+        rsn = rsn_dct["new_rsn"]
+        disc_id = rsn_dct["disc_id"]
+        is_main = rsn_dct["is_main"]
         async with self.bot.pool.acquire() as con:
             # Make sure discord id is in the database.
             async with con.transaction():
@@ -137,11 +132,16 @@ class Database():
                                 f"{old_rsn} to {new_rsn}")
         msg_dct["denied"] = (f"Your name change from {old_rsn} to {new_rsn} has been denied.")
         rsn_dct = {"new_rsn": new_rsn, "old_rsn": old_rsn, "disc_id": disc_id,
-                   "start_dtg": start_dtg, "is_main": is_main}
-        self.handle_approval(ctx, msg_dct, rsn_dct)
+                   "start_dtg": start_dtg, "is_main": is_main, "register": False}
+        await self.handle_approval(ctx, msg_dct, rsn_dct)
 
-    async def name_change(self, disc_id, old_rsn, start_dtg, new_rsn, is_main):
+    async def name_change(self, rsn_dct):
         """Processes name changes."""
+        disc_id = rsn_dct["disc_id"]
+        old_rsn = rsn_dct["old_rsn"]
+        new_rsn = rsn_dct["new_rsn"]
+        start_dtg = rsn_dct["start_dtg"]
+        is_main = rsn_dct["is_main"]
         new_start_dtg = datetime.now()
         end_dtg = new_start_dtg
         async with self.bot.pool.acquire() as con:
