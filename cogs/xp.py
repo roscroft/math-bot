@@ -152,6 +152,11 @@ class XP():
         with open('./figures/hist.png', 'rb') as histogram:
             await ctx.send(file=discord.File(histogram))
 
+    @xp.command(name=["gains", "gainz"])
+    async def gains(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
+        """Plots gains of requested skill for requested players."""
+        pass
+
     @xp.command(name="check")
     @commands.is_owner()
     async def check(self, ctx):

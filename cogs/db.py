@@ -62,7 +62,7 @@ class Database():
         if name_exists:
             await ctx.send(f"Username {rsn} already registered.")
             return
-        if id_exists:
+        if id_exists and is_main:
             await ctx.send(f"You already have a main account registered. Use '$change "
                            "main <old_name> <new_name>' to change your name.")
             return
@@ -169,7 +169,7 @@ class Database():
 
     @register.command(name="alt")
     async def _alt(self, ctx, rsn):
-        """Registers the given rsn as the player's current main account."""
+        """Registers the given rsn as an alt account."""
         await self.handle_registration(ctx, rsn, False)
 
     @commands.group()
