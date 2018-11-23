@@ -41,44 +41,47 @@ class Database():
 
     async def handle_registration(self, ctx, rsn, is_main):
         """Handles registration output."""
-        async with self.bot.pool.acquire() as con:
-            exists = await rsn_exists(con, rsn)
-        disc_id = str(ctx.author.id)
+        try:
+            async with self.bot.pool.acquire() as con:
+                exists = await rsn_exists(con, rsn)
+            disc_id = str(ctx.author.id)
 
-        if not exists:
-            await ctx.send(f"Username {rsn} not found in clan database.")
-            return
+            if not exists:
+                await ctx.send(f"Username {rsn} not found in clan database.")
+                return
 
-        # First check if the user is currently registered for the username.
-        # Next, check if the user is already registered for a main. If so,
-        # begin the name change process.
-        names_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE rsn = $1 AND
-            end_dtg IS NULL);"""
-        id_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE disc_id = $1 AND
-            is_main = True);"""
-        async with self.bot.pool.acquire() as con:
-            name_exists = await con.fetchval(names_stmt, rsn)
-            id_exists = await con.fetchval(id_stmt, str(ctx.author.id))
-        if name_exists:
-            await ctx.send(f"Username {rsn} already registered.")
-            return
-        if id_exists and is_main:
-            await ctx.send(f"You already have a main account registered. Use '$change "
-                           "main <old_name> <new_name>' to change your name.")
-            return
+            # First check if the user is currently registered for the username.
+            # Next, check if the user is already registered for a main. If so,
+            # begin the name change process.
+            names_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE rsn = $1 AND
+                end_dtg IS NULL);"""
+            id_stmt = """SELECT EXISTS(SELECT 1 FROM account_owned WHERE disc_id = $1 AND
+                is_main = True);"""
+            async with self.bot.pool.acquire() as con:
+                name_exists = await con.fetchval(names_stmt, rsn)
+                id_exists = await con.fetchval(id_stmt, str(ctx.author.id))
+            if name_exists:
+                await ctx.send(f"Username {rsn} already registered.")
+                return
+            if id_exists and is_main:
+                await ctx.send(f"You already have a main account registered. Use '$change "
+                            "main <old_name> <new_name>' to change your name.")
+                return
 
-        rsn_dct = {"disc_id": disc_id, "new_rsn": rsn, "is_main": is_main, "register": True}
-        msg_dct = {}
-        msg_dct["approve"] = (f"Discord user {ctx.author.name} is attempting to register Runescape "
-                              f"username {rsn}. React with :white_check_mark: to approve, or :x: "
-                              "to disapprove.")
-        msg_dct["approved"] = (f"Your registration as {rsn} has been approved.")
-        msg_dct["finalized"] = (f"Discord user {ctx.author.name} approved as Runescape "
-                                f"user {rsn}.")
-        msg_dct["denied"] = (f"Your registration as {rsn} has been denied. "
-                             "You must reregister with a valid username.")
+            rsn_dct = {"disc_id": disc_id, "new_rsn": rsn, "is_main": is_main, "register": True}
+            msg_dct = {}
+            msg_dct["approve"] = (f"Discord user {ctx.author.name} is attempting to register Runescape "
+                                f"username {rsn}. React with :white_check_mark: to approve, or :x: "
+                                "to disapprove.")
+            msg_dct["approved"] = (f"Your registration as {rsn} has been approved.")
+            msg_dct["finalized"] = (f"Discord user {ctx.author.name} approved as Runescape "
+                                    f"user {rsn}.")
+            msg_dct["denied"] = (f"Your registration as {rsn} has been denied. "
+                                "You must reregister with a valid username.")
 
-        await self.handle_approval(ctx, msg_dct, rsn_dct)
+            await self.handle_approval(ctx, msg_dct, rsn_dct)
+        except Exception as e:
+            print(e)
 
     async def register_user(self, rsn_dct):
         """Inserts account registers into the database."""
