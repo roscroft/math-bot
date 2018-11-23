@@ -4,9 +4,15 @@ import asyncio
 import json
 import logging
 import aiohttp
+import discord
+import numpy as np
 from discord.ext import commands
 from utils.config import player_url
 from utils.helpers import get_clan_list, update_names
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.mlab as mlab
+import matplotlib.pyplot as plt; plt.rcdefaults()
 
 def get_skill_dict():
     """Returns the dictionary containing all skills and ids."""
@@ -69,10 +75,20 @@ class XP():
         self.bot = bot
         self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
-    async def get_xp_list(self, ctx, players, info):
+    async def get_xp_list(self, ctx, info, players):
         """Gets the skill info for each player, returns a list sorted by xp value."""
+        # We have the skill ID and member, so we need to pull the most recent XP record for the
+        # given user(s). If no user(s) are supplied, default to the registered rsn of the
+        # Discord member who sent the command.
+        if not players:
+            auth = await Player.convert(ctx, ctx.author.name)
+            players = [auth]
+        players = [player.rsn for player in players if player is not None]
+        logging.info(f"Players requested: {players}")
         skill_id = info["id"]
         xp_list = []
+        # Now that we have a tuple of the valid players from the command, we can retrieve xp
+        # and skill values for each player in the specified skill.
         for player in players:
             async with self.bot.pool.acquire() as con:
                 xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level,
@@ -92,18 +108,11 @@ class XP():
     async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
         """Handles the xp commands - allows users to retrieve level and xp values for themselves
         and others."""
+        if info is None:
+            await ctx.send("Please enter a valid skill name.")
+            return
         if ctx.invoked_subcommand is None:
-            # We have the skill ID and member, so we need to pull the most recent XP record for the
-            # given user(s). If no user(s) are supplied, default to the registered rsn of the
-            # Discord member who sent the command.
-            if not players:
-                auth = await Player.convert(ctx, ctx.author.name)
-                players = [auth]
-            players = [player.rsn for player in players if player is not None]
-            logging.info(f"Players requested: {players}")
-            # Now that we have a tuple of the valid players from the command, we can retrieve xp
-            # and skill values for each player in the specified skill.
-            xp_list = await self.get_xp_list(ctx, players, info)
+            xp_list = await self.get_xp_list(ctx, info, players)
             skill = info["skill"]
             out_msg = f"{skill.title()}:\n"
             for num, rec in enumerate(xp_list):
@@ -120,6 +129,28 @@ class XP():
             out_msg += f"{skill_info['skill']}: {nickname}\n"
         out_msg = out_msg[:-1] + "```"
         await ctx.author.send(out_msg)
+
+    @xp.command(name="graph")
+    async def graph(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
+        """Plots line graph of requested skill for requested players."""
+        xp_list = await self.get_xp_list(ctx, info, players)
+        skill = info["skill"]
+        plt.clf()
+        players = [rec[0] for rec in xp_list]
+        values = [rec[2]/10.0 for rec in xp_list]
+        fig, axes = plt.subplots(figsize=(16, 6))
+        axes.set_facecolor("#F3F3F3")
+        index = np.arange(len(players))
+        plt.bar(index, values, alpha=0.4, color="gold", edgecolor="black", align='center')
+        plt.xlabel("Players")
+        plt.ylabel(f"XP Amount")
+        plt.title(f"Clan {skill.title()} XP Comparison")
+        plt.xticks(index, players)
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        plt.savefig('./figures/hist.png')
+        with open('./figures/hist.png', 'rb') as histogram:
+            await ctx.send(file=discord.File(histogram))
 
     @xp.command(name="check")
     @commands.is_owner()
