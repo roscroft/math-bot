@@ -1,6 +1,7 @@
 __pycache__/
 resources/
 test/
+figures/
 subs/markov/resources/
 config.py
 __init__.py
