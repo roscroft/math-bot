@@ -6,13 +6,15 @@ import logging
 import aiohttp
 import discord
 import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
 from discord.ext import commands
 from utils.config import player_url
 from utils.helpers import get_clan_list, update_names
-import matplotlib as mpl
-mpl.use('Agg')
-import matplotlib.mlab as mlab
-import matplotlib.pyplot as plt; plt.rcdefaults()
+# import matplotlib as mpl
+# mpl.use('Agg')
+# import matplotlib.mlab as mlab
+# import matplotlib.pyplot as plt; plt.rcdefaults()
 
 def get_skill_dict():
     """Returns the dictionary containing all skills and ids."""
@@ -75,16 +77,21 @@ class XP():
         self.bot = bot
         self.bot.xp_report = self.bot.loop.create_task(self.report_xp())
 
-    async def get_xp_list(self, ctx, info, players):
-        """Gets the skill info for each player, returns a list sorted by xp value."""
-        # We have the skill ID and member, so we need to pull the most recent XP record for the
-        # given user(s). If no user(s) are supplied, default to the registered rsn of the
-        # Discord member who sent the command.
+    async def get_players(self, ctx, players):
+        """Converts list of players into a readable list, includes author."""
         if not players:
             auth = await Player.convert(ctx, ctx.author.name)
             players = [auth]
         players = [player.rsn for player in players if player is not None]
         logging.info(f"Players requested: {players}")
+        return players
+
+    async def get_xp_list(self, ctx, info, players):
+        """Gets the skill info for each player, returns a list sorted by xp value."""
+        # We have the skill ID and member, so we need to pull the most recent XP record for the
+        # given user(s). If no user(s) are supplied, default to the registered rsn of the
+        # Discord member who sent the command.
+        players = await self.get_players(ctx, players)
         skill_id = info["id"]
         xp_list = []
         # Now that we have a tuple of the valid players from the command, we can retrieve xp
@@ -103,6 +110,25 @@ class XP():
 
         xp_list = sorted(xp_list, key=lambda x: x[3])
         return xp_list
+
+    async def get_xp_history(self, ctx, info, players):
+        """Gets historical xp info for each player."""
+        players = await self.get_players(ctx, players)
+        skill_id = info["id"]
+        for player in players:
+            player_dict = {}
+            async with self.bot.pool.acquire() as con:
+                async with con.transaction():
+                    xp_stmt = """SELECT (skills -> $1 ->> 'xp')::integer AS xp, dtg
+                                FROM xp WHERE rsn = $2 ORDER BY dtg DESC;"""
+                    async for record in con.cursor(xp_stmt, skill_id, player):
+                        player_dict[record["dtg"]] = record["xp"]
+            player_series = pd.Series(player_dict)
+            player_series.plot()
+            print("Plotted.")
+            plt.savefig('./figures/hist.png')
+            with open('./figures/hist.png', 'rb') as histogram:
+                await ctx.send(file=discord.File(histogram))
 
     @commands.group(invoke_without_command=True)
     async def xp(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
@@ -155,7 +181,7 @@ class XP():
     @xp.command(name="gains")
     async def gains(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
         """Plots gains of requested skill for requested players."""
-        pass
+        xp_hist = await self.get_xp_history(ctx, info, players)
 
     @xp.command(name="check")
     @commands.is_owner()
