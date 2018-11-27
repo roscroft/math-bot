@@ -115,6 +115,8 @@ class XP():
         """Gets historical xp info for each player."""
         players = await self.get_players(ctx, players)
         skill_id = info["id"]
+        skill = info["skill"]
+        plt.clf()
         for player in players:
             player_dict = {}
             async with self.bot.pool.acquire() as con:
@@ -122,10 +124,13 @@ class XP():
                     xp_stmt = """SELECT (skills -> $1 ->> 'xp')::integer AS xp, dtg
                                 FROM xp WHERE rsn = $2 ORDER BY dtg DESC;"""
                     async for record in con.cursor(xp_stmt, skill_id, player):
-                        player_dict[record["dtg"]] = record["xp"]
+                        player_dict[record["dtg"]] = (record["xp"]/10.0)
             player_series = pd.Series(player_dict)
             player_series.plot()
-            print("Plotted.")
+            plt.xlabel("Date")
+            plt.ylabel(f"XP Amount")
+            plt.title(f"{skill.title()} XP Gains")
+            plt.tight_layout()
             plt.savefig('./figures/hist.png')
             with open('./figures/hist.png', 'rb') as histogram:
                 await ctx.send(file=discord.File(histogram))
