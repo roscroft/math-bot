@@ -195,6 +195,20 @@ class XP():
         await ctx.send("Updating xp records...")
         await self.report_xp()
 
+    async def report_comp(self, xp_dict):
+        """Adds in comp percentage records from xp records."""
+        # Unfortuantely we'll have a magic number here. There is one elite skill, id 26.
+        # Everything else is a regular skill.
+        total_counted_xp = 0
+        total_needed_xp = 0
+        skills = xp_dict["skills"]
+        for skill_id, data in skills.items():
+            # If we're looking at a regular skill, add the max of the current xp and 
+            if skill_id not in elite_ids:
+
+
+
+
     async def report_xp(self):
         """Adds all xp records to databse."""
         await self.bot.wait_until_ready()
@@ -241,7 +255,6 @@ async def check_xp(username):
     if name is None or skillvalues is None:
         logging.info(f"{username}'s profile is private.")
         return None
-
     xp_dict = {}
     xp_dict["rsn"] = name
     xp_dict["dtg"] = datetime.now()
@@ -253,5 +266,4 @@ async def check_xp(username):
         skill_id = skillinfo.get("id", 100)
         xp_values[skill_id] = {"level": level, "xp": skill_xp, "rank": rank}
     xp_dict["skills"] = xp_values
-
     return xp_dict
