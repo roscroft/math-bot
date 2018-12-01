@@ -95,7 +95,7 @@ class XP():
         for player in players:
             async with self.bot.pool.acquire() as con:
                 xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level,
-                            (skills -> $1 ->> 'xp')::integer AS xp,
+                            (skills -> $1 ->> 'xp')::decimal AS xp,
                             (skills -> $1 ->> 'rank')::integer AS rank
                             FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
                 xp_res = await con.fetchrow(xp_stmt, skill_id, player)
@@ -117,7 +117,7 @@ class XP():
             player_dict = {}
             async with self.bot.pool.acquire() as con:
                 async with con.transaction():
-                    xp_stmt = """SELECT (skills -> $1 ->> 'xp')::integer AS xp, dtg
+                    xp_stmt = """SELECT (skills -> $1 ->> 'xp')::float AS xp, dtg
                                 FROM xp WHERE rsn = $2 ORDER BY dtg DESC;"""
                     async for record in con.cursor(xp_stmt, skill_id, player):
                         player_dict[record["dtg"]] = record["xp"]
@@ -183,6 +183,42 @@ class XP():
     async def gains(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
         """Plots gains of requested skill for requested players."""
         await self.get_xp_history(ctx, info, players)
+
+    @commands.group(name="max", invoke_without_command=True)
+    async def max(self, ctx, players: commands.Greedy[Player] = None):
+        """Returns max percentage/details for requested players."""
+        if ctx.invoked_subcommand is None:
+            players = await self.get_players(ctx, players)
+            if players is None:
+                return
+            output = []
+            for player in players:
+                async with self.bot.pool.acquire() as con:
+                    max_pct_stmt = '''SELECT max_pct FROM comp WHERE rsn = $1 ORDER BY dtg LIMIT 1;'''
+                    max_pct = await con.fetchval(max_pct_stmt, player)
+                output.append((player, max_pct))
+            max_pct_output = sorted(output, key=lambda x: x[1])
+            out_msg = "Percent to Max:\n"
+            for rsn, max_pct in max_pct_output:
+                out_msg += f"{rsn}: {round(max_pct*100,2)}%\n"
+            await ctx.send(f"```{out_msg[:-1]}```")
+
+    @commands.group(name="comp", invoke_without_command=True)
+    async def comp(self, ctx, players: commands.Greedy[Player] = None):
+        """Returns comp percentage/details for requested players."""
+        if ctx.invoked_subcommand is None:
+            players = await self.get_players(ctx, players)
+            output = []
+            for player in players:
+                async with self.bot.pool.acquire() as con:
+                    comp_pct_stmt = '''SELECT comp_pct FROM comp WHERE rsn = $1 ORDER BY dtg LIMIT 1;'''
+                    comp_pct = await con.fetchval(comp_pct_stmt, player)
+                output.append((player, comp_pct))
+            comp_pct_output = sorted(output, key=lambda x: x[1])
+            out_msg = "Percent to Comp:\n"
+            for rsn, comp_pct in comp_pct_output:
+                out_msg += f"{rsn}: {round(comp_pct*100,2)}%\n"
+            await ctx.send(f"```{out_msg[:-1]}```")
 
     @xp.command(name="check")
     @commands.is_owner()
