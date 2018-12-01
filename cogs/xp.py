@@ -11,10 +11,6 @@ import pandas as pd
 from discord.ext import commands
 from utils.config import player_url
 from utils.helpers import get_clan_list, update_names
-# import matplotlib as mpl
-# mpl.use('Agg')
-# import matplotlib.mlab as mlab
-# import matplotlib.pyplot as plt; plt.rcdefaults()
 
 def get_skill_dict():
     """Returns the dictionary containing all skills and ids."""
@@ -124,7 +120,7 @@ class XP():
                     xp_stmt = """SELECT (skills -> $1 ->> 'xp')::integer AS xp, dtg
                                 FROM xp WHERE rsn = $2 ORDER BY dtg DESC;"""
                     async for record in con.cursor(xp_stmt, skill_id, player):
-                        player_dict[record["dtg"]] = (record["xp"]/10.0)
+                        player_dict[record["dtg"]] = record["xp"]
             player_series = pd.Series(player_dict)
             player_series.plot()
             plt.xlabel("Date")
@@ -168,7 +164,7 @@ class XP():
         skill = info["skill"]
         plt.clf()
         players = [rec[0] for rec in xp_list]
-        values = [rec[2]/10.0 for rec in xp_list]
+        values = [rec[2] for rec in xp_list]
         fig, axes = plt.subplots(figsize=(16, 6))
         axes.set_facecolor("#F3F3F3")
         index = np.arange(len(players))
@@ -186,7 +182,7 @@ class XP():
     @xp.command(name="gains")
     async def gains(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
         """Plots gains of requested skill for requested players."""
-        xp_hist = await self.get_xp_history(ctx, info, players)
+        await self.get_xp_history(ctx, info, players)
 
     @xp.command(name="check")
     @commands.is_owner()
@@ -197,48 +193,69 @@ class XP():
 
     async def report_comp(self, xp_dict):
         """Adds in comp percentage records from xp records."""
-        # Unfortuantely we'll have a magic number here. There is one elite skill, id 26.
-        # Everything else is a regular skill.
-        total_counted_xp = 0
-        total_needed_xp = 0
+        comp_counted_xp = 0
+        comp_needed_xp = 0
+        max_counted_xp = 0
+        max_needed_xp = 0
         skills = xp_dict["skills"]
         for skill_id, data in skills.items():
-            # If we're looking at a regular skill, add the max of the current xp and 
-            if skill_id not in elite_ids:
-
-
-
+            # Get the max level xp from the database
+            async with self.bot.pool.acquire() as con:
+                comp_level_stmt = '''SELECT max_level FROM level_experience WHERE skill_id = $1'''
+                comp_level = await con.fetchval(comp_level_stmt, skill_id)
+                comp_xp_stmt = '''SELECT (xp_amount ->> $1)::integer as comp_xp FROM level_experience
+                                WHERE skill_id = $2'''
+                max_level = 99
+                max_xp_stmt = '''SELECT (xp_amount ->> $1)::integer as max_xp FROM level_experience
+                                WHERE skill_id = $2'''
+                comp_xp = await con.fetchval(comp_xp_stmt, str(comp_level), skill_id)
+                max_xp = await con.fetchval(max_xp_stmt, str(max_level), skill_id)
+            comp_needed_xp += comp_xp
+            comp_counted_xp += min(comp_xp, data["xp"])
+            max_needed_xp += max_xp
+            max_counted_xp += min(max_xp, data["xp"])
+        comp_pct = comp_counted_xp/(comp_needed_xp*1.0)
+        max_pct = max_counted_xp/(max_needed_xp*1.0)
+        return (max_pct, comp_pct)
 
     async def report_xp(self):
         """Adds all xp records to databse."""
-        await self.bot.wait_until_ready()
-        while not self.bot.is_closed():
-            logging.info("Updating xp records...")
-            clan_list = await get_clan_list()
-            logging.info(clan_list)
-            logging.info(len(clan_list))
-            async with self.bot.pool.acquire() as con:
-                await update_names(con, clan_list)
-            for user in clan_list:
-                logging.info(user)
-                xp_dict = await check_xp(user)
-                if xp_dict is not None:
-                    async with self.bot.pool.acquire() as con:
-                        await con.set_type_codec(
-                            'json',
-                            encoder=json.dumps,
-                            decoder=json.loads,
-                            schema='pg_catalog'
-                        )
-                        async with con.transaction():
-                            xp_stmt = """INSERT INTO xp(rsn, dtg, skills)
-                                VALUES($1, $2, $3::json)"""
-                            await con.execute(
-                                xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
-                else:
-                    continue
+        try:
+            await self.bot.wait_until_ready()
+            while not self.bot.is_closed():
+                logging.info("Updating xp records...")
+                clan_list = await get_clan_list()
+                logging.info(clan_list)
+                logging.info(len(clan_list))
+                async with self.bot.pool.acquire() as con:
+                    await update_names(con, clan_list)
+                for user in clan_list:
+                    logging.info(user)
+                    xp_dict = await check_xp(user)
+                    if xp_dict is not None:
+                        (max_pct, comp_pct) = await self.report_comp(xp_dict)
+                        async with self.bot.pool.acquire() as con:
+                            await con.set_type_codec(
+                                'json',
+                                encoder=json.dumps,
+                                decoder=json.loads,
+                                schema='pg_catalog'
+                            )
+                            async with con.transaction():
+                                xp_stmt = """INSERT INTO xp(rsn, dtg, skills)
+                                    VALUES($1, $2, $3::json)"""
+                                await con.execute(
+                                    xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
+                                comp_stmt = """INSERT INTO comp(rsn, dtg, max_pct, comp_pct)
+                                    VALUES($1, $2, $3, $4);"""
+                                await con.execute(
+                                    comp_stmt, xp_dict["rsn"], xp_dict["dtg"], max_pct, comp_pct)
+                    else:
+                        continue
 
-            await asyncio.sleep(86400)
+                await asyncio.sleep(86400)
+        except Exception as e:
+            print(e)
 
 def setup(bot):
     """Adds the cog to the bot."""
@@ -261,7 +278,7 @@ async def check_xp(username):
     xp_values = {}
     for skillinfo in skillvalues:
         level = skillinfo.get("level", 0)
-        skill_xp = skillinfo.get("xp", 0)
+        skill_xp = int(skillinfo.get("xp", 0))/10.0
         rank = skillinfo.get("rank", 0)
         skill_id = skillinfo.get("id", 100)
         xp_values[skill_id] = {"level": level, "xp": skill_xp, "rank": rank}

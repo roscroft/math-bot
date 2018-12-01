@@ -94,7 +94,8 @@ async def create_comp_table(conn):
             id serial,
             rsn text NOT NULL,
             dtg timestamp,
-            percent decimal,
+            max_pct decimal,
+            comp_pct decimal,
             PRIMARY KEY(id),
             FOREIGN KEY (rsn) REFERENCES rs(rsn)
         )
