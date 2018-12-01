@@ -87,6 +87,20 @@ async def create_xp_table(conn):
         )
     ''')
 
+async def create_comp_table(conn):
+    """Creates table tracking comp percentages."""
+    await conn.execute('''
+        CREATE TABLE IF NOT EXISTS comp(
+            id serial,
+            rsn text NOT NULL,
+            dtg timestamp,
+            max_pct decimal,
+            comp_pct decimal,
+            PRIMARY KEY(id),
+            FOREIGN KEY (rsn) REFERENCES rs(rsn)
+        )
+    ''')
+#CREATE TABLE level_experience(skill_id integer, name text, max_level integer, is_elite bool, xp_amount json, PRIMARY KEY(skill_id));
 def main():
     """Runs the database creation."""
     loop = asyncio.new_event_loop()

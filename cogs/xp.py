@@ -11,10 +11,6 @@ import pandas as pd
 from discord.ext import commands
 from utils.config import player_url
 from utils.helpers import get_clan_list, update_names
-# import matplotlib as mpl
-# mpl.use('Agg')
-# import matplotlib.mlab as mlab
-# import matplotlib.pyplot as plt; plt.rcdefaults()
 
 def get_skill_dict():
     """Returns the dictionary containing all skills and ids."""
@@ -99,7 +95,7 @@ class XP():
         for player in players:
             async with self.bot.pool.acquire() as con:
                 xp_stmt = """SELECT (skills -> $1 ->> 'level')::integer AS level,
-                            (skills -> $1 ->> 'xp')::integer AS xp,
+                            (skills -> $1 ->> 'xp')::decimal AS xp,
                             (skills -> $1 ->> 'rank')::integer AS rank
                             FROM xp WHERE rsn = $2 ORDER BY dtg DESC LIMIT 1;"""
                 xp_res = await con.fetchrow(xp_stmt, skill_id, player)
@@ -121,10 +117,10 @@ class XP():
             player_dict = {}
             async with self.bot.pool.acquire() as con:
                 async with con.transaction():
-                    xp_stmt = """SELECT (skills -> $1 ->> 'xp')::integer AS xp, dtg
+                    xp_stmt = """SELECT (skills -> $1 ->> 'xp')::float AS xp, dtg
                                 FROM xp WHERE rsn = $2 ORDER BY dtg DESC;"""
                     async for record in con.cursor(xp_stmt, skill_id, player):
-                        player_dict[record["dtg"]] = (record["xp"]/10.0)
+                        player_dict[record["dtg"]] = record["xp"]
             player_series = pd.Series(player_dict)
             player_series.plot()
             plt.xlabel("Date")
@@ -168,7 +164,7 @@ class XP():
         skill = info["skill"]
         plt.clf()
         players = [rec[0] for rec in xp_list]
-        values = [rec[2]/10.0 for rec in xp_list]
+        values = [rec[2] for rec in xp_list]
         fig, axes = plt.subplots(figsize=(16, 6))
         axes.set_facecolor("#F3F3F3")
         index = np.arange(len(players))
@@ -186,7 +182,43 @@ class XP():
     @xp.command(name="gains")
     async def gains(self, ctx, info: get_skill_info, players: commands.Greedy[Player] = None):
         """Plots gains of requested skill for requested players."""
-        xp_hist = await self.get_xp_history(ctx, info, players)
+        await self.get_xp_history(ctx, info, players)
+
+    @commands.group(name="max", invoke_without_command=True)
+    async def max(self, ctx, players: commands.Greedy[Player] = None):
+        """Returns max percentage/details for requested players."""
+        if ctx.invoked_subcommand is None:
+            players = await self.get_players(ctx, players)
+            if players is None:
+                return
+            output = []
+            for player in players:
+                async with self.bot.pool.acquire() as con:
+                    max_pct_stmt = '''SELECT max_pct FROM comp WHERE rsn = $1 ORDER BY dtg LIMIT 1;'''
+                    max_pct = await con.fetchval(max_pct_stmt, player)
+                output.append((player, max_pct))
+            max_pct_output = sorted(output, key=lambda x: x[1])
+            out_msg = "Percent to Max:\n"
+            for rsn, max_pct in max_pct_output:
+                out_msg += f"{rsn}: {round(max_pct*100,2)}%\n"
+            await ctx.send(f"```{out_msg[:-1]}```")
+
+    @commands.group(name="comp", invoke_without_command=True)
+    async def comp(self, ctx, players: commands.Greedy[Player] = None):
+        """Returns comp percentage/details for requested players."""
+        if ctx.invoked_subcommand is None:
+            players = await self.get_players(ctx, players)
+            output = []
+            for player in players:
+                async with self.bot.pool.acquire() as con:
+                    comp_pct_stmt = '''SELECT comp_pct FROM comp WHERE rsn = $1 ORDER BY dtg LIMIT 1;'''
+                    comp_pct = await con.fetchval(comp_pct_stmt, player)
+                output.append((player, comp_pct))
+            comp_pct_output = sorted(output, key=lambda x: x[1])
+            out_msg = "Percent to Comp:\n"
+            for rsn, comp_pct in comp_pct_output:
+                out_msg += f"{rsn}: {round(comp_pct*100,2)}%\n"
+            await ctx.send(f"```{out_msg[:-1]}```")
 
     @xp.command(name="check")
     @commands.is_owner()
@@ -195,36 +227,71 @@ class XP():
         await ctx.send("Updating xp records...")
         await self.report_xp()
 
+    async def report_comp(self, xp_dict):
+        """Adds in comp percentage records from xp records."""
+        comp_counted_xp = 0
+        comp_needed_xp = 0
+        max_counted_xp = 0
+        max_needed_xp = 0
+        skills = xp_dict["skills"]
+        for skill_id, data in skills.items():
+            # Get the max level xp from the database
+            async with self.bot.pool.acquire() as con:
+                comp_level_stmt = '''SELECT max_level FROM level_experience WHERE skill_id = $1'''
+                comp_level = await con.fetchval(comp_level_stmt, skill_id)
+                comp_xp_stmt = '''SELECT (xp_amount ->> $1)::integer as comp_xp FROM level_experience
+                                WHERE skill_id = $2'''
+                max_level = 99
+                max_xp_stmt = '''SELECT (xp_amount ->> $1)::integer as max_xp FROM level_experience
+                                WHERE skill_id = $2'''
+                comp_xp = await con.fetchval(comp_xp_stmt, str(comp_level), skill_id)
+                max_xp = await con.fetchval(max_xp_stmt, str(max_level), skill_id)
+            comp_needed_xp += comp_xp
+            comp_counted_xp += min(comp_xp, data["xp"])
+            max_needed_xp += max_xp
+            max_counted_xp += min(max_xp, data["xp"])
+        comp_pct = comp_counted_xp/(comp_needed_xp*1.0)
+        max_pct = max_counted_xp/(max_needed_xp*1.0)
+        return (max_pct, comp_pct)
+
     async def report_xp(self):
         """Adds all xp records to databse."""
-        await self.bot.wait_until_ready()
-        while not self.bot.is_closed():
-            logging.info("Updating xp records...")
-            clan_list = await get_clan_list()
-            logging.info(clan_list)
-            logging.info(len(clan_list))
-            async with self.bot.pool.acquire() as con:
-                await update_names(con, clan_list)
-            for user in clan_list:
-                logging.info(user)
-                xp_dict = await check_xp(user)
-                if xp_dict is not None:
-                    async with self.bot.pool.acquire() as con:
-                        await con.set_type_codec(
-                            'json',
-                            encoder=json.dumps,
-                            decoder=json.loads,
-                            schema='pg_catalog'
-                        )
-                        async with con.transaction():
-                            xp_stmt = """INSERT INTO xp(rsn, dtg, skills)
-                                VALUES($1, $2, $3::json)"""
-                            await con.execute(
-                                xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
-                else:
-                    continue
+        try:
+            await self.bot.wait_until_ready()
+            while not self.bot.is_closed():
+                logging.info("Updating xp records...")
+                clan_list = await get_clan_list()
+                logging.info(clan_list)
+                logging.info(len(clan_list))
+                async with self.bot.pool.acquire() as con:
+                    await update_names(con, clan_list)
+                for user in clan_list:
+                    logging.info(user)
+                    xp_dict = await check_xp(user)
+                    if xp_dict is not None:
+                        (max_pct, comp_pct) = await self.report_comp(xp_dict)
+                        async with self.bot.pool.acquire() as con:
+                            await con.set_type_codec(
+                                'json',
+                                encoder=json.dumps,
+                                decoder=json.loads,
+                                schema='pg_catalog'
+                            )
+                            async with con.transaction():
+                                xp_stmt = """INSERT INTO xp(rsn, dtg, skills)
+                                    VALUES($1, $2, $3::json)"""
+                                await con.execute(
+                                    xp_stmt, xp_dict["rsn"], xp_dict["dtg"], xp_dict["skills"])
+                                comp_stmt = """INSERT INTO comp(rsn, dtg, max_pct, comp_pct)
+                                    VALUES($1, $2, $3, $4);"""
+                                await con.execute(
+                                    comp_stmt, xp_dict["rsn"], xp_dict["dtg"], max_pct, comp_pct)
+                    else:
+                        continue
 
-            await asyncio.sleep(86400)
+                await asyncio.sleep(86400)
+        except Exception as e:
+            print(e)
 
 def setup(bot):
     """Adds the cog to the bot."""
@@ -241,17 +308,15 @@ async def check_xp(username):
     if name is None or skillvalues is None:
         logging.info(f"{username}'s profile is private.")
         return None
-
     xp_dict = {}
     xp_dict["rsn"] = name
     xp_dict["dtg"] = datetime.now()
     xp_values = {}
     for skillinfo in skillvalues:
         level = skillinfo.get("level", 0)
-        skill_xp = skillinfo.get("xp", 0)
+        skill_xp = int(skillinfo.get("xp", 0))/10.0
         rank = skillinfo.get("rank", 0)
         skill_id = skillinfo.get("id", 100)
         xp_values[skill_id] = {"level": level, "xp": skill_xp, "rank": rank}
     xp_dict["skills"] = xp_values
-
     return xp_dict
