@@ -129,7 +129,7 @@ class XP():
             player_series.plot()
             plt.xlabel("Date")
             plt.ylabel(f"XP Amount")
-            plt.title(f"{skill.title()} XP Gains")
+            plt.title(f"{player}'s {skill.title()} XP Gains")
             plt.tight_layout()
             plt.savefig('./figures/hist.png')
             with open('./figures/hist.png', 'rb') as histogram:
