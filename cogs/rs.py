@@ -42,7 +42,7 @@ class RS():
                 minint = int(args[0])
                 maxint = int(args[1])
             else:
-                await ctx.send('Error: invalid arguments. Syntax is `~roll [maxint]` or `~roll [minint] [maxint]`.')
+                await ctx.send('Error: invalid arguments. Syntax is `$roll [maxint]` or `$roll [minint] [maxint]`.')
                 return
         except ValueError:
             await ctx.send('Error: one or both arguments are not valid numbers.')
@@ -51,6 +51,33 @@ class RS():
             await ctx.send(f'Error: min greater than or equal to max ({minint} >= {maxint})')
         else:
             await ctx.send(f'Rolled {random.randint(minint, maxint)}!')
+
+    @commands.command()
+    async def multiroll(self, ctx, *args):
+        """Rolls a random number from a given range multiple times."""
+        try:
+            if len(args) == 2:
+                num_rolls = int(args[0])
+                minint = 1
+                maxint = int(args[1])
+            elif len(args) == 3:
+                num_rolls = int(args[0])
+                minint = int(args[1])
+                maxint = int(args[2])
+            else:
+                await ctx.send('Error: invalid arguments. Syntax is `$multiroll [num. rolls] [maxint]` or '
+                               '`$multiroll [num. rolls] [minint] [maxint]`.')
+                return
+        except ValueError:
+            await ctx.send('Error: one or both arguments are not valid numbers.')
+            return
+        if minint >= maxint:
+            await ctx.send(f'Error: min greater than or equal to max ({minint} >= {maxint})')
+        else:
+            out = f"__**Rolling from {minint} to {maxint} {num_rolls} times**__:\n"
+            for i in range(num_rolls):
+                out += f'**{i + 1}.** Rolled {random.randint(minint, maxint)}!\n'
+            await ctx.send(out)
 
     @commands.command()
     async def reset(self, ctx):
