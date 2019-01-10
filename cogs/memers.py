@@ -278,6 +278,21 @@ class Memers():
             await ctx.send(f"{user} has {num_votes_left} more votes until submission ban.")
 
     @commands.command()
+    async def snap(self, ctx, *args):
+        """Determines whether you have been snapped by Thanos or not."""
+        if len(args) > 0:
+            name = ' '.join(args)
+        else:
+            name = ctx.author.name
+        total = 0
+        for c in name:
+            total += ord(c)
+        if total % 2 == 0:
+            await ctx.send(f"{name.title()}, you were spared by Thanos.")
+        else:
+            await ctx.send(f'{name.title()}, you were slain by Thanos, for the good of the Universe.')
+
+    @commands.command()
     @commands.is_owner()
     async def clearvotes(self, ctx, user):
         """Clears votes against a player, effectively unbanning them."""
