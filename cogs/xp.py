@@ -125,7 +125,7 @@ class XP():
             player_series.plot()
             plt.xlabel("Date")
             plt.ylabel(f"XP Amount")
-            plt.title(f"{skill.title()} XP Gains")
+            plt.title(f"{player}'s {skill.title()} XP Gains")
             plt.tight_layout()
             plt.savefig('./figures/hist.png')
             with open('./figures/hist.png', 'rb') as histogram:
@@ -194,7 +194,7 @@ class XP():
             output = []
             for player in players:
                 async with self.bot.pool.acquire() as con:
-                    max_pct_stmt = '''SELECT max_pct FROM comp WHERE rsn = $1 ORDER BY dtg LIMIT 1;'''
+                    max_pct_stmt = '''SELECT max_pct FROM comp WHERE rsn = $1 ORDER BY dtg DESC LIMIT 1;'''
                     max_pct = await con.fetchval(max_pct_stmt, player)
                 output.append((player, max_pct))
             max_pct_output = sorted(output, key=lambda x: x[1])
@@ -211,7 +211,7 @@ class XP():
             output = []
             for player in players:
                 async with self.bot.pool.acquire() as con:
-                    comp_pct_stmt = '''SELECT comp_pct FROM comp WHERE rsn = $1 ORDER BY dtg LIMIT 1;'''
+                    comp_pct_stmt = '''SELECT comp_pct FROM comp WHERE rsn = $1 ORDER BY dtg DESC LIMIT 1;'''
                     comp_pct = await con.fetchval(comp_pct_stmt, player)
                 output.append((player, comp_pct))
             comp_pct_output = sorted(output, key=lambda x: x[1])
