@@ -4,6 +4,8 @@ import json
 import random
 import re
 import asyncio
+from string import Template
+
 import discord
 from discord.ext import commands
 from utils import config
@@ -24,7 +26,7 @@ def check_votes(user):
         votes_left = MAX_VOTES
     return votes_left > 0
 
-def add_to_json(filename, call, response, user, is_img):
+def add_to_json(filename, call, response, user, is_img, call_regex=None):
     """Adds a record to the given json file."""
     with open(f"./resources/{filename}", "r+") as response_file:
         responses = json.load(response_file)
@@ -36,6 +38,8 @@ def add_to_json(filename, call, response, user, is_img):
             responses[call] = {}
             responses[call]["response"] = response
             responses[call]["user"] = user
+            if call_regex:
+                responses[call]["call_regex"] = call_regex
             with open(f"./resources/{filename}", "w") as response_file:
                 json.dump(responses, response_file)
             if not is_img:
@@ -94,22 +98,26 @@ def list_user_adds(filename, user, is_img):
 
 def get_call_response_vars(call, response):
     """Parses the variables from a call/response pair."""
-    call_var_names = [x for x in call.split(' ') if x is not None and len(x) > 1 and x[0] == '$']
-    response_var_names = [x for x in response.split(' ') if x is not None and len(x) > 1 and x[0] == '$']
-    return call_var_names, response_var_names
+    wildcard_regex = re.compile(r'\$(\w+)')
+    call_vars = wildcard_regex.findall(call)
+    response_vars = wildcard_regex.findall(response)
+    return call_vars, response_vars
 
 def validate_call_response_vars(call, response):
-    """Checks if the variables in a call/response pair are valid. If not, it also returns an error message."""
-    call_var_names, response_var_names = get_call_response_vars(call, response)
-    if len(call_var_names) != len(set(call_var_names)):
-        return False, "Cannot add call/response pair: duplicate variable in call."
+    """Checks if the variables in a call/response pair are valid.
+    If not, it also returns an error message."""
+    # call_var_names, response_var_names = get_call_response_vars(call, response)
+    call_vars, response_vars = get_call_response_vars(call, response)
+    if len(call_vars) != len(set(call_vars)):
+        return "Cannot add call/response pair: duplicate variable in call."
 
-    for response_var_name in response_var_names:
-        if response_var_name not in call_var_names:
-            if response_var_name != '$author':   # 'author' is a special variable that gets the call author's name
-                                                 # and places it into the response.
-                return False, f"Cannot add call/response pair: Variable {response_var_name} in response not found in call."
-    return True, ""
+    for response_var in response_vars:
+        if response_var not in call_vars:
+            # '$author' is a reserved variable set to the author's name
+            if response_var != 'author':
+                return (f"Cannot add call/response pair: Variable {response_var} in "
+                        "response not found in call.")
+    return None
 
 class Memers():
     """Defines the cap command and functions."""
@@ -151,9 +159,10 @@ class Memers():
         if " " not in call:
             out_msg = "If you're getting this message then your call was probably terrible."
         elif '$' in call:
-            pair_is_valid, out_msg = validate_call_response_vars(call, response)
-            if pair_is_valid:
-                out_msg = add_to_json(filename, call, response, user, False)
+            out_msg = validate_call_response_vars(call, response)
+            if out_msg is None:
+                call_regex = re.sub(r"(\$\w+)", "(.*)", call)
+                out_msg = add_to_json(filename, call, response, user, False, call_regex=call_regex)
         else:
             out_msg = add_to_json(filename, call, response, user, False)
         await ctx.send(out_msg)
@@ -280,17 +289,18 @@ class Memers():
     @commands.command()
     async def snap(self, ctx, *args):
         """Determines whether you have been snapped by Thanos or not."""
-        if len(args) > 0:
+        if args:
             name = ' '.join(args)
         else:
             name = ctx.author.name
         total = 0
-        for c in name:
-            total += ord(c)
+        for char in name:
+            total += ord(char)
         if total % 2 == 0:
             await ctx.send(f"{name.title()}, you were spared by Thanos.")
         else:
-            await ctx.send(f'{name.title()}, you were slain by Thanos, for the good of the Universe.')
+            await ctx.send(f"{name.title()}, you were slain by Thanos, "
+                           "for the good of the Universe.")
 
     @commands.command()
     @commands.is_owner()
@@ -393,37 +403,26 @@ class Memers():
         if not ctx.content.startswith("$"):
             with open(f"./resources/responses.json", "r+") as response_file:
                 responses = json.load(response_file)
-                try:
-                    for call, response_dict in responses.items():
-                        response = response_dict['response']
-                        if '$' in call:
-                            replace_words = {}
-                            call_words = call.split(' ')
-                            call_var_names, response_var_names = get_call_response_vars(call, response)
+            for call, response_dict in responses.items():
+                response = response_dict.get('response', None)
+                if response is None:
+                    await ctx.channel.send("No response exists.")
+                if '$' in call:
+                    call_regex = response_dict.get('call_regex', None)
+                    if not call_regex:
+                        continue
 
-                            # Search for vars in message. If search returns None, go to next call/response pair.
-                            for call_var_name in call_var_names:
-                                var_index = call_words.index(call_var_name)
-                                before = '' if var_index == 0 else call_words[var_index - 1]
-                                after = '' if var_index == len(call_words) - 1 else call_words[var_index + 1]
-                                search_result = re.search('(?<=%s).*(?=%s)' % (before, after), ctx.content)
-                                if not search_result:
-                                    replace_words[call_var_name] = None
-                                    break
-                                replace_words[call_var_name] = search_result.group(0).strip()
+                    call_vars, response_vars = get_call_response_vars(call, response)
+                    call_search = re.search(call_regex, ctx.content)
+                    if not call_search:
+                        continue
 
-                            if None in replace_words.values() or '' in replace_words.values():
-                                continue
-
-                            response = response.replace('$author', ctx.author.name)
-                            for find, replace in replace_words.items():
-                                response = response.replace(find, replace)
-                            await ctx.channel.send(response)
-                        else:
-                            if call in ctx.content.lower():
-                                await ctx.channel.send(f"{response}")
-                except KeyError:
-                    print("No response in file!")
+                    call_var_mapping = dict(zip(call_vars, call_search.groups()))
+                    call_var_mapping['author'] = ctx.author.name
+                    await ctx.channel.send(Template(response).substitute(call_var_mapping))
+                else:
+                    if call in ctx.content.lower():
+                        await ctx.channel.send(f"{response}")
 
         if ctx.channel.id != config.main_channel:
             if ctx.content.lower() in ["i'm dad", "im dad"]:
