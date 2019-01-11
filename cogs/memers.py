@@ -2,6 +2,7 @@
 """Defines commands used for the Memers server."""
 import json
 import random
+import re
 import asyncio
 import discord
 from discord.ext import commands
@@ -91,6 +92,25 @@ def list_user_adds(filename, user, is_img):
     out_msg = f"```{out_msg}```"
     return out_msg
 
+def get_call_response_vars(call, response):
+    """Parses the variables from a call/response pair."""
+    call_var_names = [x for x in call.split(' ') if x is not None and len(x) > 1 and x[0] == '$']
+    response_var_names = [x for x in response.split(' ') if x is not None and len(x) > 1 and x[0] == '$']
+    return call_var_names, response_var_names
+
+def validate_call_response_vars(call, response):
+    """Checks if the variables in a call/response pair are valid. If not, it also returns an error message."""
+    call_var_names, response_var_names = get_call_response_vars(call, response)
+    if len(call_var_names) != len(set(call_var_names)):
+        return False, "Cannot add call/response pair: duplicate variable in call."
+
+    for response_var_name in response_var_names:
+        if response_var_name not in call_var_names:
+            if response_var_name != '$author':   # 'author' is a special variable that gets the call author's name
+                                                 # and places it into the response.
+                return False, f"Cannot add call/response pair: Variable {response_var_name} in response not found in call."
+    return True, ""
+
 class Memers():
     """Defines the cap command and functions."""
 
@@ -130,10 +150,13 @@ class Memers():
         user = ctx.author.name
         if " " not in call:
             out_msg = "If you're getting this message then your call was probably terrible."
-            await ctx.send(out_msg)
+        elif '$' in call:
+            pair_is_valid, out_msg = validate_call_response_vars(call, response)
+            if pair_is_valid:
+                out_msg = add_to_json(filename, call, response, user, False)
         else:
             out_msg = add_to_json(filename, call, response, user, False)
-            await ctx.send(out_msg)
+        await ctx.send(out_msg)
 
     @commands.command(name="rm", hidden=True)
     @commands.check(is_mod)
@@ -255,6 +278,21 @@ class Memers():
             await ctx.send(f"{user} has {num_votes_left} more votes until submission ban.")
 
     @commands.command()
+    async def snap(self, ctx, *args):
+        """Determines whether you have been snapped by Thanos or not."""
+        if len(args) > 0:
+            name = ' '.join(args)
+        else:
+            name = ctx.author.name
+        total = 0
+        for c in name:
+            total += ord(c)
+        if total % 2 == 0:
+            await ctx.send(f"{name.title()}, you were spared by Thanos.")
+        else:
+            await ctx.send(f'{name.title()}, you were slain by Thanos, for the good of the Universe.')
+
+    @commands.command()
     @commands.is_owner()
     async def clearvotes(self, ctx, user):
         """Clears votes against a player, effectively unbanning them."""
@@ -358,8 +396,32 @@ class Memers():
                 try:
                     for call, response_dict in responses.items():
                         response = response_dict['response']
-                        if call in ctx.content.lower():
-                            await ctx.channel.send(f"{response}")
+                        if '$' in call:
+                            replace_words = {}
+                            call_words = call.split(' ')
+                            call_var_names, response_var_names = get_call_response_vars(call, response)
+
+                            # Search for vars in message. If search returns None, go to next call/response pair.
+                            for call_var_name in call_var_names:
+                                var_index = call_words.index(call_var_name)
+                                before = '' if var_index == 0 else call_words[var_index - 1]
+                                after = '' if var_index == len(call_words) - 1 else call_words[var_index + 1]
+                                search_result = re.search('(?<=%s).*(?=%s)' % (before, after), ctx.content)
+                                if not search_result:
+                                    replace_words[call_var_name] = None
+                                    break
+                                replace_words[call_var_name] = search_result.group(0).strip()
+
+                            if None in replace_words.values() or '' in replace_words.values():
+                                continue
+
+                            response = response.replace('$author', ctx.author.name)
+                            for find, replace in replace_words.items():
+                                response = response.replace(find, replace)
+                            await ctx.channel.send(response)
+                        else:
+                            if call in ctx.content.lower():
+                                await ctx.channel.send(f"{response}")
                 except KeyError:
                     print("No response in file!")
 
