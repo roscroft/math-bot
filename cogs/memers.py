@@ -104,6 +104,8 @@ def validate_call_response_vars(call, response):
     If not, it also returns an error message."""
     # call_var_names, response_var_names = get_call_response_vars(call, response)
     call_vars, response_vars = get_call_response_vars(call, response)
+    print(call_vars)
+    print(response_vars)
     if len(call_vars) != len(set(call_vars)):
         return "Cannot add call/response pair: duplicate variable in call."
 
