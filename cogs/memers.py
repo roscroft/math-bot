@@ -396,7 +396,7 @@ class Memers():
 
     async def on_reaction_add(self, reaction, user):
         """Defines on_reaction_add behavior for starboard."""
-        if reaction.emoji != '⭐' or reaction.message.author == user or user.bot or reaction.message.channel.id == STARBOARD_CHANNEL_ID:
+        if reaction.emoji != '⭐' or user.bot or reaction.message.channel.id == STARBOARD_CHANNEL_ID:
             return
 
         if reaction.count >= MAX_NUM_STARS:
