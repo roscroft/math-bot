@@ -413,7 +413,7 @@ class Memers():
                         continue
 
                     call_vars, response_vars = get_call_response_vars(call, response)
-                    call_search = re.search(call_regex, ctx.content)
+                    call_search = re.search(call_regex, ctx.content.lower())
                     if not call_search:
                         continue
 
