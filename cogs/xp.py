@@ -66,7 +66,7 @@ class Player(commands.Cog):
                 await ctx.send(f"Error: Player {player} not found in database.")
             return cls(player)
 
-class XP():
+class XP(commands.Cog):
     """Defines the cap command and functions."""
 
     def __init__(self, bot):
