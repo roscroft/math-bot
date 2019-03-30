@@ -108,7 +108,7 @@ def chance_reply(match):
     out_msg = f"```{out_msg}```"
     return out_msg
 
-class Telos():
+class Telos(commands.Cog):
     """Defines the telos command group and directs commands to their appropriate functions."""
 
     def __init__(self, bot):

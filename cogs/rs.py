@@ -25,7 +25,7 @@ async def get_alog(username):
     out_msg = f"```{out_msg}```"
     return out_msg
 
-class RS():
+class RS(commands.Cog):
     """Defines RS commands."""
 
     def __init__(self, bot):

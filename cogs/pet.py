@@ -96,7 +96,7 @@ def manual_reply(match):
         out_msg = f"Your chance of not getting the pet by now is: {chance}%"
     return out_msg
 
-class Pet():
+class Pet(commands.Cog):
     """Defines the pet command and functions."""
 
     def __init__(self, bot):

@@ -43,7 +43,7 @@ async def rsn_exists(con, rsn):
     exists = await con.fetchval(rsn_stmt, rsn)
     return exists
 
-class Player():
+class Player(commands.Cog):
     """Defines the Player class, used to capture either a Discord user or rsn."""
     def __init__(self, rsn):
         self.rsn = rsn

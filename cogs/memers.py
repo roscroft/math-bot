@@ -13,7 +13,6 @@ from utils import config
 
 MAX_VOTES = 10
 MAX_NUM_STARS = 5
-STARBOARD_CHANNEL_ID = 553644760255037440
 
 async def is_mod(ctx):
     """Checks if the user is a mod."""
@@ -124,7 +123,7 @@ def validate_call_response_vars(call, response):
                         "response not found in call.")
     return None
 
-class Memers():
+class Memers(commands.Cog):
     """Defines the cap command and functions."""
 
     def __init__(self, bot):
@@ -136,6 +135,7 @@ class Memers():
         self.message_buff = None
         self.message_author_buff = []
 
+    # TODO: Use database
     @staticmethod
     def get_mods():
         """Returns a list of all mods."""

@@ -4,7 +4,7 @@ from discord.ext import commands
 from utils.config import registration_channel
 from cogs.xp import rsn_exists
 
-class Database():
+class Database(commands.Cog):
     """Defines database commands."""
 
     def __init__(self, bot):

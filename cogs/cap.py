@@ -37,7 +37,7 @@ async def cap_handler_and_channel(ctx):
     """Checks if the channel is the cap channel and the user is a cap handler."""
     return ("cap handler" in map(lambda r: r.name, ctx.author.roles)) and in_cap_channel(ctx)
 
-class Cap():
+class Cap(commands.Cog):
     """Defines the cap command and functions."""
 
     def __init__(self, bot):
@@ -45,14 +45,14 @@ class Cap():
         self.bot.build_tick_checker = self.bot.loop.create_task(self.get_build_tick())
         self.bot.cap_report = self.bot.loop.create_task(self.report_caps())
 
-    @commands.group(invoke_without_command=True)
+    @bot.group(invoke_without_command=True)
     async def cap(self, ctx):
         """Defines the cap command group."""
         if ctx.invoked_subcommand is None:
             await ctx.send("Try '$cap help'.")
 
     @cap.command()
-    @commands.check(in_cap_channel)
+    @bot.check(in_cap_channel)
     async def list(self, ctx):
         """Lists the capped users."""
         userlist = []
@@ -75,7 +75,7 @@ class Cap():
         await ctx.send(len(clan_list))
 
     @cap.command()
-    @commands.check(cap_handler_and_channel)
+    @bot.check(cap_handler_and_channel)
     async def force(self, ctx, *, force_user):
         """Forces a single user to update."""
         out_msg = ""
@@ -100,7 +100,7 @@ class Cap():
         await ctx.send(out_msg)
 
     @cap.command(name="del")
-    @commands.check(cap_handler_and_channel)
+    @bot.check(cap_handler_and_channel)
     async def _del(self, ctx, which):
         """Deletes specified message."""
         def is_bot(msg):
@@ -124,7 +124,7 @@ class Cap():
         """Rechecks all alogs for cap messages."""
         await self.report_caps(list(user))
 
-    @commands.group(invoke_without_command=True)
+    @bot.group(invoke_without_command=True)
     async def tick(self, ctx):
         """Displays the last build tick."""
         if ctx.invoked_subcommand is None:
