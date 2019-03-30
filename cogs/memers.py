@@ -1,5 +1,6 @@
 #!/usr/bin/python3.6
 """Defines commands used for the Memers server."""
+import datetime
 import json
 import random
 import re
@@ -11,6 +12,8 @@ from discord.ext import commands
 from utils import config
 
 MAX_VOTES = 10
+MAX_NUM_STARS = 5
+STARBOARD_CHANNEL_ID = 553644760255037440
 
 async def is_mod(ctx):
     """Checks if the user is a mod."""
@@ -128,6 +131,8 @@ class Memers():
         self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
         self.bot.pct = 0.10
         self.bot.max_votes = MAX_VOTES
+        self.message_buff = None
+        self.message_author_buff = []
 
     @staticmethod
     def get_mods():
@@ -389,16 +394,53 @@ class Memers():
             print(f"New victim: {self.bot.victim}")
             await asyncio.sleep(10000)
 
+    async def on_reaction_add(self, reaction, user):
+        """Defines on_reaction_add behavior for starboard."""
+        if reaction.emoji != '⭐' or user.bot or reaction.message.channel.id == STARBOARD_CHANNEL_ID:
+            return
+
+        if reaction.count >= MAX_NUM_STARS:
+            channel_mention = reaction.message.channel.mention
+
+            with open('resources/starboard.txt', 'r+') as f:
+                starboard_ids = f.read().splitlines()
+
+            if str(reaction.message.id) in starboard_ids:
+                async for message in reaction.message.guild.get_channel(STARBOARD_CHANNEL_ID).history():
+                    if str(reaction.message.id) in message.content:
+                        await message.edit(content=f":star: {reaction.count} {channel_mention} ID: {reaction.message.id}")
+                return
+
+            starboard_ids.append(str(reaction.message.id))
+            with open('resources/starboard.txt', 'w') as f:
+                f.write('\n'.join(starboard_ids))
+
+            embed = discord.Embed(colour=discord.Colour(0),
+                                  url=f'https://discordapp.com/channels/{reaction.message.guild.id}/{reaction.message.channel.id}/{reaction.message.id}',
+                                  timestamp=datetime.datetime.now(),
+                                  description=reaction.message.content)
+
+            embed.set_author(name=reaction.message.author, icon_url=reaction.message.author.avatar_url)
+
+            embeds = reaction.message.embeds
+
+            bot_self = reaction.message.guild.get_channel(STARBOARD_CHANNEL_ID)
+            await bot_self.send(f":star: {reaction.count} {channel_mention} ID: {reaction.message.id}", embed=embed)
+            for embed in embeds:
+                await bot_self.send(embed=embed)
+
     async def on_message(self, ctx):
         """Defines on_message behavior for responses and victim reaction adding."""
         if ctx.author.bot:
             return
 
+        # Handle random reaction adding
         reaction_pct = random.random()
         if self.bot.victim == ctx.author.name and reaction_pct < self.bot.pct:
             add_emoji = random.sample(self.bot.emojis, 1)[0]
             await ctx.add_reaction(add_emoji)
 
+        # Handle call/response
         # if ctx.channel.id != config.main_channel:
         if not ctx.content.startswith("$"):
             with open(f"./resources/responses.json", "r+") as response_file:
@@ -413,7 +455,7 @@ class Memers():
                         continue
 
                     call_vars, response_vars = get_call_response_vars(call, response)
-                    call_search = re.search(call_regex, ctx.content)
+                    call_search = re.search(call_regex, ctx.content.lower())
                     if not call_search:
                         continue
 
@@ -424,6 +466,7 @@ class Memers():
                     if call in ctx.content.lower():
                         await ctx.channel.send(f"{response}")
 
+        # Special call/responses
         if ctx.channel.id != config.main_channel:
             if ctx.content.lower() in ["i'm dad", "im dad"]:
                 await ctx.channel.send(f"No you're not, you're {ctx.author.mention}.")
