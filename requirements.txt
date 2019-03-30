@@ -42,7 +42,6 @@ typed-ast==1.1.0
 typing-extensions==3.7.2
 ujson==1.35
 Unidecode==1.0.22
-urllib3==1.22
 webencodings==0.5.1
 websockets==6.0
 wrapt==1.10.11
