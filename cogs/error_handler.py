@@ -4,7 +4,7 @@ import sys
 from discord.ext import commands
 import discord
 
-class CommandErrorHandler:
+class CommandErrorHandler(commands.Cog):
     """Provides a framework for the new error handler."""
     def __init__(self, bot):
         self.bot = bot
