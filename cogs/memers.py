@@ -128,8 +128,8 @@ class Memers(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        self.bot.victim = ""
-        self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
+        # self.bot.victim = ""
+        # self.bot.victim_choice = self.bot.loop.create_task(self.choose_victim())
         self.bot.pct = 0.10
         self.bot.max_votes = MAX_VOTES
         self.message_buff = None
