@@ -233,8 +233,8 @@ class Cap(commands.Cog):
             await self.bot.wait_until_ready()
             with open("./resources/reset.json", "r") as reset_file:
                 reset = json.load(reset_file)
-            reset_day = reset["day"]
-            reset_hour = reset["hour"]
+            reset_day = int(reset["day"])
+            reset_hour = int(reset["hour"])
             self.bot.cap_ch = self.bot.get_channel(cap_channel)
             while not self.bot.is_closed():
                 today_utc = datetime.utcnow()
