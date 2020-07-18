@@ -55,12 +55,16 @@ class Cap(commands.Cog):
     @commands.check(in_cap_channel)
     async def list(self, ctx):
         """Lists the capped users."""
+        def bot_author(message):
+            return message.author.bot
+        def cap_msg(message):
+            return "capped" in message.content
+        def new_lines(message):
+            return message.content.split("\n")
         userlist = []
         async for msg_lines in ctx.channel.history(limit=500).filter(
-                lambda m: m.author.bot).filter(lambda m: "capped" in m.content).map(
-                    lambda m: m.content.split("\n")):
+                bot_author).filter(cap_msg).map(new_lines):
             for cap_report in msg_lines:
-                await ctx.send(cap_report.author)
                 name_index = cap_report.find(" has")
                 userlist.append(cap_report[:name_index])
         userlist.reverse()
