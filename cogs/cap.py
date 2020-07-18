@@ -65,8 +65,10 @@ class Cap(commands.Cog):
         userlist.reverse()
         ret_str = ""
         for (pos, val) in enumerate(userlist):
+            if len(ret_str) > 1000:
+                await ctx.send(ret_str)
+                ret_str = ""
             ret_str += f"{pos+1}. {val}\n"
-        await ctx.send(ret_str)
 
     @cap.command()
     async def clan(self, ctx):
@@ -116,8 +118,8 @@ class Cap(commands.Cog):
         elif which == "noncap":
             await ctx.channel.purge(limit=200, check=is_bot_noncap)
         else:
-            before_msg = await ctx.channel.get_message(which)
-            await ctx.channel.purge(limit=200, check=is_bot, before=before_msg)
+            before_msg = await ctx.channel.fetch_message(which)
+            await ctx.channel.purge(limit=1000, check=is_bot, before=before_msg)
 
     @cap.command(name="recheck")
     async def recheck(self, ctx, *user):

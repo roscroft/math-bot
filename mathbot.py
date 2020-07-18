@@ -7,7 +7,7 @@ from utils import config
 def extensions_generator():
     """Returns a generator for all cog files that aren't in do_not_use."""
     cog_path = "./cogs"
-    do_not_use = ["__init__.py", "__pycache__"]
+    do_not_use = ["__init__.py", "__pycache__", "xp.py"]
     for cog in os.listdir(cog_path):
         if cog not in do_not_use:
             yield f"cogs.{cog[:-3]}"
