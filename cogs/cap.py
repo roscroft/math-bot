@@ -222,7 +222,7 @@ class Cap(commands.Cog):
                 await con.executemany(upsert_stmt, names)
 
     async def get_build_tick(self):
-        """Returns the most recent build tick - Wednesday 1600 UTC"""
+        """Returns the most recent build tick"""
         try:
             await self.bot.wait_until_ready()
             with open("./resources/reset.json", "r") as reset_file:
