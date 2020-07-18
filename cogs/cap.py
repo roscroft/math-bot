@@ -58,7 +58,7 @@ class Cap(commands.Cog):
         def bot_author(message):
             return message.author.bot
         def cap_msg(message):
-            return "capped" in message.content
+            return "has capped at the citadel on" in message.content
         def new_lines(message):
             return message.content.split("\n")
         userlist = []
