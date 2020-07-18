@@ -74,6 +74,7 @@ class Cap(commands.Cog):
                 await ctx.send(ret_str)
                 ret_str = ""
             ret_str += f"{pos+1}. {val}\n"
+        await ctx.send(ret_str)
 
     @cap.command()
     async def clan(self, ctx):
