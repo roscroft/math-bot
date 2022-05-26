@@ -37,7 +37,7 @@ requests-toolbelt==0.9.1
 six==1.11.0
 typed-ast==1.4.1
 typing-extensions==3.7.2
-ujson==1.35
+ujson==5.2.0
 Unidecode==1.0.22
 webencodings==0.5.1
 websockets==6.0
